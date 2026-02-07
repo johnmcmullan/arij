@@ -1,0 +1,3 @@
+prefix: JK
+types: [bug, story, task, epic]
+statuses: [backlog, todo, in-progress, review, done]

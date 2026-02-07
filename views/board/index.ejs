@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Board - Jira Killer</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav>
+    <h1>Jira Killer</h1>
+    <ul>
+      <li><a href="/projects">Projects</a></li>
+      <li><a href="/board">Board</a></li>
+    </ul>
+  </nav>
+
+  <main>
+    <h2>Board</h2>
+    
+    <div class="board">
+      <div class="board-column" data-status="todo">
+        <h3>Todo (<%= tickets.todo.length %>)</h3>
+        <div class="tickets-container" id="todo-tickets">
+          <% tickets.todo.forEach(ticket => { %>
+            <div class="ticket-card" draggable="true" data-ticket-id="<%= ticket.id %>">
+              <div class="ticket-id"><%= ticket.project_key %>-<%= ticket.number %></div>
+              <div class="ticket-title"><a href="/tickets/<%= ticket.id %>"><%= ticket.title %></a></div>
+              <% if (ticket.assignee) { %>
+                <div class="ticket-assignee"><%= ticket.assignee %></div>
+              <% } %>
+            </div>
+          <% }) %>
+        </div>
+      </div>
+
+      <div class="board-column" data-status="in_progress">
+        <h3>In Progress (<%= tickets.in_progress.length %>)</h3>
+        <div class="tickets-container" id="in_progress-tickets">
+          <% tickets.in_progress.forEach(ticket => { %>
+            <div class="ticket-card" draggable="true" data-ticket-id="<%= ticket.id %>">
+              <div class="ticket-id"><%= ticket.project_key %>-<%= ticket.number %></div>
+              <div class="ticket-title"><a href="/tickets/<%= ticket.id %>"><%= ticket.title %></a></div>
+              <% if (ticket.assignee) { %>
+                <div class="ticket-assignee"><%= ticket.assignee %></div>
+              <% } %>
+            </div>
+          <% }) %>
+        </div>
+      </div>
+
+      <div class="board-column" data-status="done">
+        <h3>Done (<%= tickets.done.length %>)</h3>
+        <div class="tickets-container" id="done-tickets">
+          <% tickets.done.forEach(ticket => { %>
+            <div class="ticket-card" draggable="true" data-ticket-id="<%= ticket.id %>">
+              <div class="ticket-id"><%= ticket.project_key %>-<%= ticket.number %></div>
+              <div class="ticket-title"><a href="/tickets/<%= ticket.id %>"><%= ticket.title %></a></div>
+              <% if (ticket.assignee) { %>
+                <div class="ticket-assignee"><%= ticket.assignee %></div>
+              <% } %>
+            </div>
+          <% }) %>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="/js/board.js"></script>
+</body>
+</html>

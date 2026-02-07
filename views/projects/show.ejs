@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title><%= project.name %> - Jira Killer</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav>
+    <h1>Jira Killer</h1>
+    <ul>
+      <li><a href="/projects">Projects</a></li>
+      <li><a href="/board">Board</a></li>
+    </ul>
+  </nav>
+
+  <main>
+    <div class="header">
+      <div>
+        <h2><%= project.name %></h2>
+        <p class="project-key"><%= project.key %></p>
+        <% if (project.description) { %>
+          <p><%= project.description %></p>
+        <% } %>
+      </div>
+      <a href="/projects/<%= project.id %>/tickets/new" class="btn">New Ticket</a>
+    </div>
+
+    <h3>Tickets</h3>
+    
+    <% if (tickets.length === 0) { %>
+      <p class="empty">No tickets yet. <a href="/projects/<%= project.id %>/tickets/new">Create one</a>!</p>
+    <% } else { %>
+      <table class="tickets-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Title</th>
+            <th>Status</th>
+            <th>Assignee</th>
+            <th>Created</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% tickets.forEach(ticket => { %>
+            <tr>
+              <td><a href="/tickets/<%= ticket.id %>"><%= project.key %>-<%= ticket.number %></a></td>
+              <td><a href="/tickets/<%= ticket.id %>"><%= ticket.title %></a></td>
+              <td><span class="status status-<%= ticket.status %>"><%= ticket.status.replace('_', ' ') %></span></td>
+              <td><%= ticket.assignee || '-' %></td>
+              <td><%= new Date(ticket.created_at).toLocaleDateString() %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    <% } %>
+  </main>
+</body>
+</html>

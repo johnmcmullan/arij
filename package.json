@@ -1,0 +1,24 @@
+{
+  "name": "jira-killer",
+  "version": "1.0.0",
+  "description": "A minimal Jira alternative built in one night to prove software is commoditizable",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "init": "node init-db.js",
+    "seed": "node seed.js",
+    "setup": "npm run init && npm run seed",
+    "dev": "nodemon app.js"
+  },
+  "keywords": ["project-management", "kanban", "tickets", "jira-alternative"],
+  "author": "Wylie",
+  "license": "MIT",
+  "dependencies": {
+    "body-parser": "^1.20.3",
+    "ejs": "^3.1.10",
+    "express": "^4.21.2",
+    "marked": "^15.0.6",
+    "method-override": "^3.0.0",
+    "sqlite3": "^5.1.7"
+  }
+}

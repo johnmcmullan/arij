@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Projects - Jira Killer</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav>
+    <h1>Jira Killer</h1>
+    <ul>
+      <li><a href="/projects">Projects</a></li>
+      <li><a href="/board">Board</a></li>
+    </ul>
+  </nav>
+
+  <main>
+    <div class="header">
+      <h2>Projects</h2>
+      <a href="/projects/new" class="btn">New Project</a>
+    </div>
+
+    <% if (projects.length === 0) { %>
+      <p class="empty">No projects yet. <a href="/projects/new">Create one</a>!</p>
+    <% } else { %>
+      <div class="projects-list">
+        <% projects.forEach(project => { %>
+          <div class="project-card">
+            <h3><a href="/projects/<%= project.id %>"><%= project.name %></a></h3>
+            <p class="project-key"><%= project.key %></p>
+            <% if (project.description) { %>
+              <p><%= project.description %></p>
+            <% } %>
+          </div>
+        <% }) %>
+      </div>
+    <% } %>
+  </main>
+</body>
+</html>

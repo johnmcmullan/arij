@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>New Project - Jira Killer</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav>
+    <h1>Jira Killer</h1>
+    <ul>
+      <li><a href="/projects">Projects</a></li>
+      <li><a href="/board">Board</a></li>
+    </ul>
+  </nav>
+
+  <main>
+    <h2>Create New Project</h2>
+    
+    <form action="/projects" method="POST" class="form">
+      <div class="form-group">
+        <label for="name">Project Name *</label>
+        <input type="text" id="name" name="name" required placeholder="My Awesome Project">
+      </div>
+
+      <div class="form-group">
+        <label for="key">Project Key *</label>
+        <input type="text" id="key" name="key" required placeholder="MAP" maxlength="10" pattern="[A-Z]+" title="Uppercase letters only">
+        <small>Short identifier (e.g., MAP, PROJ). Will be used in ticket IDs like MAP-123</small>
+      </div>
+
+      <div class="form-group">
+        <label for="description">Description</label>
+        <textarea id="description" name="description" rows="4" placeholder="What is this project about?"></textarea>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Create Project</button>
+        <a href="/projects" class="btn">Cancel</a>
+      </div>
+    </form>
+  </main>
+</body>
+</html>

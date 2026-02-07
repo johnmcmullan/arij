@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>New Ticket - <%= project.name %> - Jira Killer</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav>
+    <h1>Jira Killer</h1>
+    <ul>
+      <li><a href="/projects">Projects</a></li>
+      <li><a href="/board">Board</a></li>
+    </ul>
+  </nav>
+
+  <main>
+    <h2>New Ticket in <%= project.name %></h2>
+    
+    <form action="/projects/<%= project.id %>/tickets" method="POST" class="form">
+      <div class="form-group">
+        <label for="title">Title *</label>
+        <input type="text" id="title" name="title" required placeholder="Fix the login bug">
+      </div>
+
+      <div class="form-group">
+        <label for="description">Description</label>
+        <textarea id="description" name="description" rows="8" placeholder="Describe the ticket in detail... (Markdown supported)"></textarea>
+        <small>Markdown supported</small>
+      </div>
+
+      <div class="form-group">
+        <label for="status">Status</label>
+        <select id="status" name="status">
+          <option value="todo" selected>Todo</option>
+          <option value="in_progress">In Progress</option>
+          <option value="done">Done</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="assignee">Assignee</label>
+        <input type="text" id="assignee" name="assignee" placeholder="John Doe">
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Create Ticket</button>
+        <a href="/projects/<%= project.id %>" class="btn">Cancel</a>
+      </div>
+    </form>
+  </main>
+</body>
+</html>

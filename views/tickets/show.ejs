@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title><%= project_key %>-<%= ticket.number %> - Jira Killer</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <nav>
+    <h1>Jira Killer</h1>
+    <ul>
+      <li><a href="/projects">Projects</a></li>
+      <li><a href="/board">Board</a></li>
+    </ul>
+  </nav>
+
+  <main>
+    <div class="breadcrumb">
+      <a href="/projects/<%= ticket.project_id %>"><%= ticket.project_name %></a> /
+      <%= project_key %>-<%= ticket.number %>
+    </div>
+
+    <div class="ticket-header">
+      <h2><%= ticket.title %></h2>
+      <div class="ticket-meta">
+        <span class="status status-<%= ticket.status %>"><%= ticket.status.replace('_', ' ') %></span>
+        <span>Assignee: <%= ticket.assignee || 'Unassigned' %></span>
+        <span>Created: <%= new Date(ticket.created_at).toLocaleString() %></span>
+      </div>
+    </div>
+
+    <div class="ticket-description">
+      <h3>Description</h3>
+      <% if (ticket.description) { %>
+        <%- marked.parse(ticket.description) %>
+      <% } else { %>
+        <p class="empty">No description provided.</p>
+      <% } %>
+    </div>
+
+    <div class="comments-section">
+      <h3>Comments (<%= comments.length %>)</h3>
+      
+      <% if (comments.length > 0) { %>
+        <div class="comments-list">
+          <% comments.forEach(comment => { %>
+            <div class="comment">
+              <div class="comment-header">
+                <strong><%= comment.author %></strong>
+                <span class="comment-time"><%= new Date(comment.created_at).toLocaleString() %></span>
+              </div>
+              <div class="comment-body">
+                <%- marked.parse(comment.body) %>
+              </div>
+            </div>
+          <% }) %>
+        </div>
+      <% } %>
+
+      <form action="/tickets/<%= ticket.id %>/comments" method="POST" class="comment-form">
+        <h4>Add Comment</h4>
+        <div class="form-group">
+          <label for="author">Your Name</label>
+          <input type="text" id="author" name="author" placeholder="John Doe">
+        </div>
+        <div class="form-group">
+          <textarea id="body" name="body" rows="4" required placeholder="Add your comment... (Markdown supported)"></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Add Comment</button>
+      </form>
+    </div>
+  </main>
+</body>
+</html>

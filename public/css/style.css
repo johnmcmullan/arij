@@ -1,0 +1,378 @@
+/* Jira Killer - Minimal CSS (No Framework Nonsense) */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  line-height: 1.6;
+  color: #333;
+  background: #f5f5f5;
+}
+
+/* Navigation */
+nav {
+  background: #2c3e50;
+  color: white;
+  padding: 1rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+nav h1 {
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+nav ul {
+  list-style: none;
+  display: flex;
+  gap: 2rem;
+}
+
+nav a {
+  color: white;
+  text-decoration: none;
+}
+
+nav a:hover {
+  text-decoration: underline;
+}
+
+/* Main Layout */
+main {
+  max-width: 1200px;
+  margin: 2rem auto;
+  padding: 0 2rem;
+  background: white;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  padding: 2rem;
+}
+
+/* Header */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #eee;
+}
+
+h2 {
+  font-size: 1.8rem;
+  margin-bottom: 0.5rem;
+}
+
+h3 {
+  font-size: 1.4rem;
+  margin: 1.5rem 0 1rem;
+}
+
+/* Buttons */
+.btn {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  background: #3498db;
+  color: white;
+  text-decoration: none;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.btn:hover {
+  background: #2980b9;
+}
+
+.btn-primary {
+  background: #27ae60;
+}
+
+.btn-primary:hover {
+  background: #229954;
+}
+
+/* Projects */
+.projects-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.project-card {
+  border: 1px solid #ddd;
+  padding: 1.5rem;
+  border-radius: 4px;
+  background: #fafafa;
+}
+
+.project-card h3 {
+  margin: 0 0 0.5rem 0;
+}
+
+.project-card h3 a {
+  color: #2c3e50;
+  text-decoration: none;
+}
+
+.project-card h3 a:hover {
+  color: #3498db;
+}
+
+.project-key {
+  background: #ecf0f1;
+  padding: 0.25rem 0.5rem;
+  border-radius: 3px;
+  font-family: monospace;
+  font-size: 0.9rem;
+  display: inline-block;
+  margin-bottom: 0.5rem;
+}
+
+/* Forms */
+.form {
+  max-width: 600px;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.form-group input[type="text"],
+.form-group textarea,
+.form-group select {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-family: inherit;
+}
+
+.form-group small {
+  display: block;
+  margin-top: 0.25rem;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.form-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+/* Tables */
+.tickets-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+
+.tickets-table th,
+.tickets-table td {
+  padding: 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+.tickets-table th {
+  background: #f5f5f5;
+  font-weight: 600;
+}
+
+.tickets-table a {
+  color: #3498db;
+  text-decoration: none;
+}
+
+.tickets-table a:hover {
+  text-decoration: underline;
+}
+
+/* Status Badges */
+.status {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.status-todo {
+  background: #ecf0f1;
+  color: #7f8c8d;
+}
+
+.status-in_progress {
+  background: #3498db;
+  color: white;
+}
+
+.status-done {
+  background: #27ae60;
+  color: white;
+}
+
+/* Board */
+.board {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+
+.board-column {
+  background: #f5f5f5;
+  border-radius: 4px;
+  padding: 1rem;
+  min-height: 400px;
+}
+
+.board-column h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1.1rem;
+}
+
+.tickets-container {
+  min-height: 200px;
+}
+
+.ticket-card {
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  cursor: move;
+}
+
+.ticket-card:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.ticket-card.dragging {
+  opacity: 0.5;
+}
+
+.ticket-id {
+  font-family: monospace;
+  font-size: 0.85rem;
+  color: #7f8c8d;
+  margin-bottom: 0.5rem;
+}
+
+.ticket-title {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.ticket-title a {
+  color: #2c3e50;
+  text-decoration: none;
+}
+
+.ticket-title a:hover {
+  color: #3498db;
+}
+
+.ticket-assignee {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+/* Ticket Detail */
+.breadcrumb {
+  margin-bottom: 1rem;
+  color: #7f8c8d;
+}
+
+.breadcrumb a {
+  color: #3498db;
+  text-decoration: none;
+}
+
+.ticket-header {
+  margin-bottom: 2rem;
+}
+
+.ticket-meta {
+  margin-top: 1rem;
+  display: flex;
+  gap: 2rem;
+  color: #666;
+  font-size: 0.95rem;
+}
+
+.ticket-description {
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: #f9f9f9;
+  border-radius: 4px;
+}
+
+/* Comments */
+.comments-section {
+  margin-top: 3rem;
+}
+
+.comments-list {
+  margin-top: 1rem;
+}
+
+.comment {
+  padding: 1rem;
+  border: 1px solid #eee;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+  background: #fafafa;
+}
+
+.comment-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.comment-time {
+  color: #7f8c8d;
+  font-size: 0.9rem;
+}
+
+.comment-form {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: #f5f5f5;
+  border-radius: 4px;
+}
+
+.comment-form h4 {
+  margin-bottom: 1rem;
+}
+
+/* Utilities */
+.empty {
+  color: #7f8c8d;
+  font-style: italic;
+}
+
+footer {
+  text-align: center;
+  padding: 2rem;
+  color: #7f8c8d;
+  font-size: 0.9rem;
+}
