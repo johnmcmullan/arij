@@ -1,0 +1,17 @@
+{
+  "name": "tract-jira-proxy",
+  "version": "1.0.0",
+  "description": "Transparent Jira API proxy for gradual migration to Tract",
+  "main": "proxy.js",
+  "scripts": {
+    "start": "node proxy.js",
+    "dev": "node --watch proxy.js"
+  },
+  "keywords": ["jira", "proxy", "tract", "migration"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "http-proxy": "^1.18.1",
+    "express": "^4.18.2"
+  }
+}

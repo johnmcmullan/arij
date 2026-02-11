@@ -1,0 +1,15 @@
+{
+  "jiraUrl": "https://your-jira-instance.atlassian.net",
+  "proxyPort": 8888,
+  "tractUrl": "http://localhost:3000",
+  "logsDir": "./logs",
+  "migratedProjects": [
+  ],
+  "logging": {
+    "enabled": true,
+    "logRequests": true,
+    "logResponses": true,
+    "organizeByProject": true,
+    "organizeByDate": true
+  }
+}
