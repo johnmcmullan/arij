@@ -1,6 +1,6 @@
-# Tract (Jira Killer) 🦞
+# Tract 🦞
 
-**A drop-in Jira replacement using Markdown + Frontmatter + Git**
+**A lightweight Jira alternative using Markdown + Frontmatter + Git**
 
 Simple project management where tickets are just markdown files with YAML frontmatter. No database required, everything versioned in git.
 

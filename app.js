@@ -201,8 +201,8 @@ app.post('/tickets/:ticketId/comments', async (req, res) => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`Tract (Jira Killer) running on http://localhost:${PORT}`);
-  console.log('Now using Markdown + Git backend!');
+  console.log(`Tract running on http://localhost:${PORT}`);
+  console.log('Markdown + Git backend — no database required');
 });
 
 module.exports = { app };

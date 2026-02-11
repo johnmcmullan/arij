@@ -1,2 +1,5 @@
-node_modules/\n*.db\n*.sqlite*
 node_modules/
+*.db
+*.sqlite*
+.arij/
+db/
