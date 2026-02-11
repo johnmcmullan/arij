@@ -43,11 +43,11 @@
         <tbody>
           <% tickets.forEach(ticket => { %>
             <tr>
-              <td><a href="/tickets/<%= ticket.id %>"><%= project.key %>-<%= ticket.number %></a></td>
+              <td><a href="/tickets/<%= ticket.id %>"><%= ticket.id %></a></td>
               <td><a href="/tickets/<%= ticket.id %>"><%= ticket.title %></a></td>
               <td><span class="status status-<%= ticket.status %>"><%= ticket.status.replace('_', ' ') %></span></td>
               <td><%= ticket.assignee || '-' %></td>
-              <td><%= new Date(ticket.created_at).toLocaleDateString() %></td>
+              <td><%= ticket.created || ticket.created_at || '-' %></td>
             </tr>
           <% }) %>
         </tbody>

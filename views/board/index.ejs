@@ -22,7 +22,7 @@
         <div class="tickets-container" id="todo-tickets">
           <% tickets.todo.forEach(ticket => { %>
             <div class="ticket-card" draggable="true" data-ticket-id="<%= ticket.id %>">
-              <div class="ticket-id"><%= ticket.project_key %>-<%= ticket.number %></div>
+              <div class="ticket-id"><%= ticket.id %></div>
               <div class="ticket-title"><a href="/tickets/<%= ticket.id %>"><%= ticket.title %></a></div>
               <% if (ticket.assignee) { %>
                 <div class="ticket-assignee"><%= ticket.assignee %></div>
@@ -37,7 +37,7 @@
         <div class="tickets-container" id="in_progress-tickets">
           <% tickets.in_progress.forEach(ticket => { %>
             <div class="ticket-card" draggable="true" data-ticket-id="<%= ticket.id %>">
-              <div class="ticket-id"><%= ticket.project_key %>-<%= ticket.number %></div>
+              <div class="ticket-id"><%= ticket.id %></div>
               <div class="ticket-title"><a href="/tickets/<%= ticket.id %>"><%= ticket.title %></a></div>
               <% if (ticket.assignee) { %>
                 <div class="ticket-assignee"><%= ticket.assignee %></div>
@@ -52,7 +52,7 @@
         <div class="tickets-container" id="done-tickets">
           <% tickets.done.forEach(ticket => { %>
             <div class="ticket-card" draggable="true" data-ticket-id="<%= ticket.id %>">
-              <div class="ticket-id"><%= ticket.project_key %>-<%= ticket.number %></div>
+              <div class="ticket-id"><%= ticket.id %></div>
               <div class="ticket-title"><a href="/tickets/<%= ticket.id %>"><%= ticket.title %></a></div>
               <% if (ticket.assignee) { %>
                 <div class="ticket-assignee"><%= ticket.assignee %></div>
