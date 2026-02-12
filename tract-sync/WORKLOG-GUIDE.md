@@ -310,20 +310,32 @@ cat worklogs/2026-02.jsonl | jq -r 'select(.issue | startswith("TINT-")) | "\(.s
 
 ## Integration with Other Tools
 
-### Tempo Integration (Future)
+### Tempo Integration
 
-The JSONL format is compatible with Tempo's time tracking. A script could sync to Tempo:
+**Already works!** Tempo reads worklogs from Jira, so:
 
-```bash
-# Sync to Tempo (example - not yet implemented)
-cat worklogs/2026-02.jsonl | \
-  jq -r '{"author": .author, "issue": .issue, "started": .started, "timeSpentSeconds": .seconds}' | \
-  curl -X POST https://tempo-api/worklogs -d @-
 ```
+tract log APP-3350 2h → Sync to Jira → Tempo reads from Jira ✅
+```
+
+When you log time via `tract log`, it immediately posts to Jira's worklog API. Tempo then picks it up automatically since it reads Jira worklogs.
+
+**Benefits:**
+- Developers use simple CLI: `tract log APP-3350 2h "Fixed bug"`
+- Jira gets the worklog immediately
+- Tempo sees it in Jira (no separate sync needed)
+- Managers see time in both Jira and Tempo reports
+
+The central JSONL files provide a **backup** of all time data, independent of Jira/Tempo.
 
 ### Jira Time Reports
 
-Since worklogs sync to Jira, managers can use Jira's built-in time tracking reports. The central worklogs provide a backup and enable custom queries.
+Since worklogs sync to Jira bidirectionally:
+- Jira's built-in time tracking reports work normally
+- Tempo reports work normally
+- Central worklogs provide backup and enable custom queries
+
+Both systems work together - no data loss if one system goes down.
 
 ### Spreadsheet Import
 
@@ -331,5 +343,5 @@ Export to CSV and import to Google Sheets/Excel for analysis:
 
 ```bash
 tract timesheet --month 2026-02 --format csv > feb-2026.csv
-# Open in Google Sheets or Excel
+# Open in Google Sheets or Excel for custom analysis
 ```
