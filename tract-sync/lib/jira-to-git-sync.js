@@ -83,6 +83,14 @@ class JiraToGitSync {
         frontmatter.components = jiraIssue.fields.components.map(c => c.name);
       }
       
+      if (jiraIssue.fields.fixVersions?.length > 0) {
+        frontmatter.fix_version = jiraIssue.fields.fixVersions[0].name;
+      }
+      
+      if (jiraIssue.fields.versions?.length > 0) {
+        frontmatter.affected_version = jiraIssue.fields.versions[0].name;
+      }
+      
       if (jiraIssue.fields.resolution) {
         frontmatter.resolution = jiraIssue.fields.resolution.name;
       }

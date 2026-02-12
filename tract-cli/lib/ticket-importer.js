@@ -122,6 +122,16 @@ class TicketImporter {
       frontmatter.labels = fields.labels;
     }
 
+    // Fix versions (target release)
+    if (fields.fixVersions && fields.fixVersions.length > 0) {
+      frontmatter.fix_version = fields.fixVersions[0].name;
+    }
+
+    // Affected versions (where bug was found)
+    if (fields.versions && fields.versions.length > 0) {
+      frontmatter.affected_version = fields.versions[0].name;
+    }
+
     if (fields.resolution) {
       frontmatter.resolution = fields.resolution.name;
     }

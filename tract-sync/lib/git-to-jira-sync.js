@@ -96,6 +96,14 @@ class GitToJiraSync {
       changes.components = newFM.components;
     }
     
+    if (oldFM.fix_version !== newFM.fix_version) {
+      changes.fix_version = newFM.fix_version;
+    }
+    
+    if (oldFM.affected_version !== newFM.affected_version) {
+      changes.affected_version = newFM.affected_version;
+    }
+    
     if (oldData.description !== newData.description) {
       changes.description = newData.description;
     }
@@ -140,6 +148,18 @@ class GitToJiraSync {
     
     if (changes.components) {
       updates.fields.components = changes.components.map(c => ({ name: c }));
+    }
+    
+    if (changes.fix_version !== undefined) {
+      updates.fields.fixVersions = changes.fix_version 
+        ? [{ name: changes.fix_version }]
+        : [];
+    }
+    
+    if (changes.affected_version !== undefined) {
+      updates.fields.versions = changes.affected_version
+        ? [{ name: changes.affected_version }]
+        : [];
     }
     
     if (changes.description !== undefined) {
