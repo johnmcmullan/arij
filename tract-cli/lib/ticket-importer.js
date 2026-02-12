@@ -201,8 +201,8 @@ class TicketImporter {
   convertJiraMarkdown(text) {
     if (!text) return '';
     
-    // Basic conversions from Jira to standard markdown
-    let converted = text;
+    // First, normalize line endings (remove \r)
+    let converted = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
     
     // Headers
     converted = converted.replace(/^h1\.\s+/gm, '# ');
