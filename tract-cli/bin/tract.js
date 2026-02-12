@@ -20,6 +20,8 @@ program
   .option('--token <token>', 'Jira API token (or use JIRA_TOKEN env var)')
   .option('--password <password>', 'Jira password (or use JIRA_PASSWORD env var)')
   .option('--output <dir>', 'Output directory (defaults to current directory)', '.')
+  .option('--submodule <path>', 'Add as git submodule at this path in parent repo (e.g., tickets)')
+  .option('--remote <url>', 'Git remote URL for ticket repo (optional, can be configured later)')
   .option('--no-git', 'Skip git initialization')
   .action(onboard);
 

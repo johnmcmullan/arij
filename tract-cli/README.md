@@ -40,20 +40,36 @@ tract onboard \
 - `--token <token>` - Jira API token (or set `JIRA_TOKEN`)
 - `--password <password>` - Jira password (or set `JIRA_PASSWORD`)
 - `--output <dir>` - Output directory (defaults to current directory)
+- `--submodule <path>` - Add as git submodule at this path (e.g., `tickets`)
+- `--remote <url>` - Git remote URL for ticket repo (optional, can configure later)
 - `--no-git` - Skip git initialization
 
 **Example:**
 ```bash
-# Create new project directory
+# Standalone mode - create independent ticket repo
 mkdir ~/projects/app-issues
 cd ~/projects/app-issues
-
-# Onboard from Jira
 tract onboard \
   --jira https://jira.company.com \
   --project APP \
   --user $JIRA_USERNAME \
   --token $JIRA_TOKEN
+
+# Submodule mode - tickets alongside code (RECOMMENDED)
+cd ~/work/apps  # Your code repository
+tract onboard \
+  --jira https://jira.company.com \
+  --project APP \
+  --submodule tickets \
+  --remote git@github.com:company/app-tickets.git
+
+# Submodule mode - configure remote later
+cd ~/work/apps
+tract onboard \
+  --jira https://jira.company.com \
+  --project APP \
+  --submodule tickets
+# Later: cd tickets && git remote add origin <url> && git push -u origin master
 
 # Or with environment variables:
 export JIRA_USERNAME=john@company.com
@@ -80,6 +96,64 @@ README.md             # Project README
 - Priorities (Blocker, Critical, Major, Minor, etc.)
 - Components (with descriptions)
 - Custom fields (for future use)
+
+## Submodule Mode (Recommended for Code Repositories)
+
+When tickets should live alongside your code, use `--submodule` to add tickets as a git submodule:
+
+```bash
+cd ~/work/apps  # Your code repository
+tract onboard \
+  --jira https://jira.company.com \
+  --project APP \
+  --submodule tickets \
+  --remote git@github.com:company/app-tickets.git
+```
+
+**What this does:**
+1. Creates ticket repository with `.arij/` config
+2. Initializes as git repository
+3. Pushes to remote (if `--remote` provided)
+4. Adds as git submodule at `~/work/apps/tickets/`
+5. Creates `.gitattributes` with `export-ignore` rules
+6. Commits submodule to parent code repo
+
+**Result structure:**
+```
+~/work/apps/                   # Your code repository
+├── .gitattributes             # tickets/ export-ignore
+├── .gitmodules                # submodule definition
+├── tickets/                   # ← git submodule
+│   ├── .arij/
+│   │   └── config.yaml
+│   ├── tickets/
+│   ├── projects/
+│   └── README.md
+├── src/                       # your application code
+└── README.md
+```
+
+**Benefits:**
+- **Tickets alongside code** - IDE/context available
+- **Separate git history** - ticket changes don't clutter code commits
+- **Clean client exports** - `git archive` excludes tickets (via export-ignore)
+- **LLM-friendly** - Copilot CLI can work with both code and tickets
+- **Version locking** - Can pin ticket state to code releases
+
+**Client distribution:**
+```bash
+# Create release tarball for clients
+git archive HEAD -o app-v2.0.tar.gz
+# Result: Contains src/ and code, NO tickets/ or .arij/
+```
+
+**Configuring remote later:**
+If you didn't provide `--remote` during onboarding:
+```bash
+cd ~/work/apps/tickets
+git remote add origin git@github.com:company/app-tickets.git
+git push -u origin master
+```
 
 ## Authentication
 
