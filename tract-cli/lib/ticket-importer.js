@@ -54,10 +54,10 @@ class TicketImporter {
     const issues = await this.jiraClient.searchIssues(query, limit);
     spinner.succeed(chalk.green(`✓ Fetched ${issues.length} tickets`));
 
-    // Create tickets directory
-    const ticketsDir = path.join(this.tractDir, 'tickets');
-    if (!fs.existsSync(ticketsDir)) {
-      fs.mkdirSync(ticketsDir, { recursive: true });
+    // Create issues directory
+    const issuesDir = path.join(this.tractDir, 'issues');
+    if (!fs.existsSync(issuesDir)) {
+      fs.mkdirSync(issuesDir, { recursive: true });
     }
 
     // Convert and write tickets
@@ -66,7 +66,7 @@ class TicketImporter {
     let updated = 0;
 
     for (const issue of issues) {
-      const ticketPath = path.join(ticketsDir, `${issue.key}.md`);
+      const ticketPath = path.join(issuesDir, `${issue.key}.md`);
       const existed = fs.existsSync(ticketPath);
       
       const markdown = this.convertToMarkdown(issue);
@@ -84,7 +84,7 @@ class TicketImporter {
     console.log(chalk.bold.green('\n✅ Import Complete!\n'));
     console.log(chalk.gray(`  Created: ${created} tickets`));
     console.log(chalk.gray(`  Updated: ${updated} tickets`));
-    console.log(chalk.gray(`  Location: ${path.relative(process.cwd(), ticketsDir)}/\n`));
+    console.log(chalk.gray(`  Location: ${path.relative(process.cwd(), issuesDir)}/\n`));
 
     return { created, updated, total: issues.length };
   }

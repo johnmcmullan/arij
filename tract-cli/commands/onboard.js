@@ -272,7 +272,7 @@ async function onboard(options) {
       // Commit imported tickets
       if (importResult.total > 0) {
         try {
-          execSync('git add tickets/', { cwd: finalDir, stdio: 'pipe' });
+          execSync('git add issues/', { cwd: finalDir, stdio: 'pipe' });
           execSync(`git commit -m "Import ${importResult.created} tickets from Jira"`, { 
             cwd: finalDir, 
             stdio: 'pipe' 

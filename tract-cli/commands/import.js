@@ -59,7 +59,7 @@ async function importCommand(options) {
     if (options.commit && result.total > 0) {
       const { execSync } = require('child_process');
       try {
-        execSync('git add tickets/', { cwd: tractDir, stdio: 'pipe' });
+        execSync('git add issues/', { cwd: tractDir, stdio: 'pipe' });
         const commitMsg = result.created > 0 
           ? `Import ${result.created} new tickets from Jira`
           : `Update ${result.updated} tickets from Jira`;
