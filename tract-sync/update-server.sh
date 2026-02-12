@@ -14,6 +14,7 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 # Pull latest code from GitHub (as root, no tract login needed)
 echo "📥 Pulling latest code from GitHub..."
 cd /opt/tract/tract
+git config --global --add safe.directory /opt/tract/tract 2>/dev/null || true
 git fetch origin
 git reset --hard origin/master
 chown -R tract:tract /opt/tract/tract
