@@ -146,7 +146,9 @@ fi
 # Create or copy ticket repository
 if [ -n "$EXISTING_TICKETS" ] && [ -d "$EXISTING_TICKETS" ]; then
   info "Copying existing tickets from $EXISTING_TICKETS..."
-  sudo -u "$TRACT_USER" cp -r "$EXISTING_TICKETS" "$REPO_DIR"
+  # Copy as root (has permission), then chown to tract user
+  cp -r "$EXISTING_TICKETS" "$REPO_DIR"
+  chown -R "$TRACT_USER:$TRACT_USER" "$REPO_DIR"
   success "Copied existing tickets"
 else
   info "Running tract onboard for $PROJECT_NAME..."
