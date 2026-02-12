@@ -95,7 +95,22 @@ app.post('/webhook/jira', async (req, res) => {
       }
     }
     
-    // Handle event
+    const webhookEvent = req.body.webhookEvent;
+    const issue = req.body.issue;
+    
+    console.log(`\n📨 Jira webhook: ${webhookEvent}`);
+    
+    // Handle worklog events
+    if (webhookEvent === 'worklog_created' || webhookEvent === 'worklog_updated') {
+      const worklog = req.body.worklog;
+      if (worklog && issue?.key) {
+        console.log(`  📝 Worklog event for ${issue.key}`);
+        await worklogManager.addWorklogFromJira(issue.key, worklog);
+        return res.json({ status: 'worklog_synced', issue: issue.key });
+      }
+    }
+    
+    // Handle issue events (delegate to jiraToGit)
     await jiraToGit.handleWebhookEvent(req.body);
     
     res.json({ status: 'ok' });
