@@ -208,6 +208,14 @@ class TicketImporter {
       frontmatter.remaining = hours > 0 ? `${hours}h` : `${minutes}m`;
     }
 
+    // Attachments (extract Jira URLs)
+    if (fields.attachment && fields.attachment.length > 0) {
+      frontmatter.attachments = fields.attachment.map(att => ({
+        name: att.filename,
+        url: att.content // Jira API provides full URL in content field
+      }));
+    }
+
     // Description
     let description = '';
     if (fields.description) {

@@ -4,6 +4,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const GitToJiraSync = require('./lib/git-to-jira-sync');
 const JiraToGitSync = require('./lib/jira-to-git-sync');
+const WorklogManager = require('./lib/worklog-manager');
 
 const app = express();
 app.use(bodyParser.json());
@@ -34,6 +35,26 @@ if (!config.repoPath) {
 // Initialize sync handlers
 const gitToJira = new GitToJiraSync(config);
 const jiraToGit = new JiraToGitSync(config);
+
+// Initialize worklog manager
+const axios = require('axios');
+const jiraClient = axios.create({
+  baseURL: config.jiraUrl,
+  auth: {
+    username: config.jiraUsername,
+    password: config.jiraPassword
+  },
+  headers: {
+    'Content-Type': 'application/json'
+  }
+});
+
+const worklogManager = new WorklogManager({
+  repoPath: config.repoPath,
+  jiraClient: jiraClient,
+  syncUser: config.syncUser,
+  syncEmail: config.syncEmail
+});
 
 // Health check
 app.get('/health', (req, res) => {
@@ -111,6 +132,71 @@ app.post('/sync/git-to-jira/:issueKey', async (req, res) => {
   }
 });
 
+// Worklog endpoints
+app.post('/worklog/:issueKey', async (req, res) => {
+  try {
+    const { issueKey } = req.params;
+    const { author, time, comment, started } = req.body;
+    
+    if (!author || !time) {
+      return res.status(400).json({ error: 'author and time required' });
+    }
+    
+    const entry = await worklogManager.addWorklog(issueKey, {
+      author,
+      time,
+      comment,
+      started
+    });
+    
+    res.json({ status: 'ok', entry });
+  } catch (error) {
+    console.error('❌ Worklog error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/worklog/:issueKey', async (req, res) => {
+  try {
+    const { issueKey } = req.params;
+    const worklogs = worklogManager.getWorklogs(issueKey);
+    
+    // Calculate total time
+    const totalSeconds = worklogs.reduce((sum, log) => sum + log.seconds, 0);
+    
+    res.json({
+      issue: issueKey,
+      worklogs,
+      total: worklogManager.formatSeconds(totalSeconds),
+      totalSeconds
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/timesheet/:author', async (req, res) => {
+  try {
+    const { author } = req.params;
+    const { date, week, month } = req.query;
+    
+    const entries = worklogManager.getTimesheet(author, { date, week, month });
+    
+    // Calculate total time
+    const totalSeconds = entries.reduce((sum, e) => sum + e.seconds, 0);
+    
+    res.json({
+      author,
+      filter: { date, week, month },
+      entries,
+      total: worklogManager.formatSeconds(totalSeconds),
+      totalSeconds
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Start server
 app.listen(config.port, () => {
   console.log(`
@@ -128,8 +214,24 @@ Endpoints:
   POST /webhook/jira        - Jira webhook
   POST /webhook/git         - Git post-receive hook
   POST /sync/git-to-jira/:issueKey - Manual sync
+  POST /worklog/:issueKey   - Add worklog entry
+  GET  /worklog/:issueKey   - Get worklogs for issue
+  GET  /timesheet/:author   - Get timesheet for user
 
 Ready to sync! 🚀
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   `);
+});
+
+// Graceful shutdown - flush pending commits
+process.on('SIGTERM', async () => {
+  console.log('Shutting down gracefully...');
+  await worklogManager.flush();
+  process.exit(0);
+});
+
+process.on('SIGINT', async () => {
+  console.log('Shutting down gracefully...');
+  await worklogManager.flush();
+  process.exit(0);
 });

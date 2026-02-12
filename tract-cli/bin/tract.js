@@ -51,4 +51,33 @@ program
   .option('--commit', 'Auto-commit imported tickets to git')
   .action(importCommand);
 
+program
+  .command('log')
+  .description('Log time to an issue')
+  .argument('<issue>', 'Issue key (e.g., APP-1002)')
+  .argument('<time>', 'Time spent (e.g., 2h, 30m, 1d)')
+  .argument('[comment]', 'Work description')
+  .option('--server <url>', 'Sync server URL (or use TRACT_SYNC_SERVER env var)')
+  .option('--author <name>', 'Author name (defaults to git user.name)')
+  .option('--started <datetime>', 'Start time (ISO 8601, defaults to now)')
+  .action(require('../commands/log'));
+
+program
+  .command('timesheet')
+  .description('View timesheet entries')
+  .argument('[author]', 'Author name (defaults to git user.name)')
+  .option('--server <url>', 'Sync server URL (or use TRACT_SYNC_SERVER env var)')
+  .option('--date <date>', 'Specific date (YYYY-MM-DD)')
+  .option('--week [week]', 'ISO week (e.g., 2026-W07, or current week if no value)')
+  .option('--month <month>', 'Month (YYYY-MM)')
+  .option('--format <format>', 'Output format: text, json, csv', 'text')
+  .action(require('../commands/timesheet'));
+
+program
+  .command('worklogs')
+  .description('View worklog entries for an issue')
+  .argument('<issue>', 'Issue key (e.g., APP-1002)')
+  .option('--server <url>', 'Sync server URL (or use TRACT_SYNC_SERVER env var)')
+  .action(require('../commands/worklogs'));
+
 program.parse(process.argv);
