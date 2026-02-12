@@ -4,6 +4,13 @@
 
 Simple project management where tickets are just markdown files with YAML frontmatter. No database required, everything versioned in git.
 
+## Quick Links
+
+- **[Installation Guide](tract-cli/README.md#installation)** - Get started in 1 command
+- **[Multi-Project Setup](MULTI-PROJECT.md)** - Onboard TB, APP, PRD with workspace config
+- **[Component Mapping](ON-DEMAND-MAPPING.md)** - LLM-powered component-to-code mapping
+- **[CLI Reference](tract-cli/README.md)** - Complete command documentation
+
 ## The Philosophy
 
 If an AI assistant can build Jira's core features, then:
