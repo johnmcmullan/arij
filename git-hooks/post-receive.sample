@@ -1,0 +1,71 @@
+#!/bin/bash
+# Git post-receive hook for Tract integration
+# 
+# Installation:
+#   1. Copy to .git/hooks/post-receive in your repo
+#   2. Make executable: chmod +x .git/hooks/post-receive
+#   3. Set TRACT_WEBHOOK_SECRET environment variable
+#
+# For server-side repos (bare repos):
+#   Copy to hooks/post-receive (no .git/ prefix in bare repos)
+
+set -e
+
+# Configuration
+TRACT_URL="${TRACT_URL:-http://localhost:3000/api/webhooks/git}"
+TRACT_SECRET="${TRACT_WEBHOOK_SECRET:-change-me-in-production}"
+
+# Get repo name (works for both bare and non-bare repos)
+if [ -d .git ]; then
+  # Non-bare repo
+  REPO_NAME=$(basename $(pwd))
+else
+  # Bare repo
+  REPO_NAME=$(basename $(pwd) .git)
+fi
+
+# Read push details from stdin
+while read oldrev newrev refname; do
+  # Skip zero commits (branch deletions)
+  if [ "$newrev" = "0000000000000000000000000000000000000000" ]; then
+    continue
+  fi
+  
+  # For new branches, use HEAD~1..newrev instead of oldrev..newrev
+  if [ "$oldrev" = "0000000000000000000000000000000000000000" ]; then
+    oldrev="$newrev~1"
+  fi
+  
+  # Build commit list (JSON array)
+  commits_json=$(git log --format='{"id":"%H","message":"%s","author":"%an","timestamp":"%aI"}' "$oldrev..$newrev" | jq -s 'map(select(.id != null))')
+  
+  # Build payload
+  payload=$(jq -n \
+    --arg repo "$REPO_NAME" \
+    --arg ref "$refname" \
+    --arg before "$oldrev" \
+    --arg after "$newrev" \
+    --argjson commits "$commits_json" \
+    '{repo: $repo, ref: $ref, before: $before, after: $after, commits: $commits}')
+  
+  # Send to Tract
+  response=$(curl -s -w "\n%{http_code}" \
+    -X POST "$TRACT_URL" \
+    -H "Content-Type: application/json" \
+    -H "X-Git-Secret: $TRACT_SECRET" \
+    -d "$payload")
+  
+  # Parse response
+  http_code=$(echo "$response" | tail -n1)
+  body=$(echo "$response" | head -n-1)
+  
+  if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
+    echo "✓ Tract: linked commits to tickets"
+    echo "$body" | jq -r '.tickets[]' | sed 's/^/  → /' || true
+  else
+    echo "⚠ Tract webhook failed (HTTP $http_code)"
+    echo "$body" | jq '.' 2>/dev/null || echo "$body"
+  fi
+done
+
+exit 0

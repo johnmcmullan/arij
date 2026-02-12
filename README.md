@@ -19,6 +19,7 @@ This project proves it works.
 ✅ **Tickets** - Markdown files with frontmatter (PROJ-123.md)  
 ✅ **Kanban Board** - Drag-and-drop between Todo/In Progress/Done  
 ✅ **Comments** - Embedded in ticket markdown files  
+✅ **Git Integration** - Auto-link commits to tickets via webhooks  
 ✅ **Git-ready** - All changes go to files, ready to commit  
 ✅ **Zero Database** - No SQLite, PostgreSQL, or MongoDB needed  
 ✅ **Zero CSS frameworks** - Plain HTML, minimal CSS  
@@ -138,6 +139,9 @@ I can help with the frontend.
 
 ## Git Integration
 
+Tract has **bidirectional git integration:**
+
+### 1. Tract → Git (Manual commits)
 Tract writes everything to markdown files, making it git-ready out of the box:
 
 ```bash
@@ -154,6 +158,21 @@ git diff tickets/PROJ-042.md
 # Revert a ticket to previous state
 git checkout HEAD~1 -- tickets/PROJ-042.md
 ```
+
+### 2. Git → Tract (Automatic linking)
+Commits automatically link to tickets via webhooks:
+
+```bash
+# Include ticket ID in commit message
+git commit -m "TB-001: Fix login bug"
+git push
+
+# Tract webhook receives push
+# → Parses commit message
+# → Links commit to TB-001 as a comment
+```
+
+**Setup:** See [GIT-INTEGRATION.md](./GIT-INTEGRATION.md) for webhook installation.
 
 The LLM managing your project can decide when to commit, giving you intelligent version control without manual overhead.
 
