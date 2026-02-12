@@ -118,7 +118,7 @@ This is a Tract project - a Jira replacement using Markdown+Git.
 ### Structure
 
 \`\`\`
-.arij/                 # Project configuration
+.tract/                 # Project configuration
   config.yaml          # Statuses, types, priorities
   components.yaml      # Component definitions
 projects/              # Project metadata
@@ -163,7 +163,7 @@ First comment...
 
 ### Configuration
 
-Edit \`.arij/config.yaml\` to customize:
+Edit \`.tract/config.yaml\` to customize:
 - Issue types
 - Workflow statuses
 - Priorities
@@ -180,25 +180,25 @@ Imported: ${new Date().toISOString()}
     const files = [];
 
     // Create directories
-    const arijDir = path.join(outputDir, '.arij');
+    const tractDir = path.join(outputDir, '.tract');
     const projectsDir = path.join(outputDir, 'projects');
     const ticketsDir = path.join(outputDir, 'tickets');
 
-    [arijDir, projectsDir, ticketsDir].forEach(dir => {
+    [tractDir, projectsDir, ticketsDir].forEach(dir => {
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
       }
     });
 
-    // Write .arij/config.yaml
-    const configPath = path.join(arijDir, 'config.yaml');
+    // Write .tract/config.yaml
+    const configPath = path.join(tractDir, 'config.yaml');
     fs.writeFileSync(configPath, this.generateConfig());
     files.push(configPath);
 
-    // Write .arij/components.yaml if components exist
+    // Write .tract/components.yaml if components exist
     const componentsYaml = this.generateComponents();
     if (componentsYaml) {
-      const componentsPath = path.join(arijDir, 'components.yaml');
+      const componentsPath = path.join(tractDir, 'components.yaml');
       fs.writeFileSync(componentsPath, componentsYaml);
       files.push(componentsPath);
     }

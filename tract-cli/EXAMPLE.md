@@ -50,8 +50,8 @@ Output:   /home/you/projects/app-issues
 ✓ Configuration files generated
 
 📝 Created Files:
-   .arij/config.yaml
-   .arij/components.yaml
+   .tract/config.yaml
+   .tract/components.yaml
    projects/APP.md
    README.md
    .gitignore
@@ -63,10 +63,10 @@ Output:   /home/you/projects/app-issues
 Next Steps:
 
    # Review and edit configuration:
-   cat .arij/config.yaml
+   cat .tract/config.yaml
 
    # Add component paths:
-   vim .arij/components.yaml
+   vim .tract/components.yaml
 
    # Import existing Jira issues (future):
    tract import --project APP
@@ -77,7 +77,7 @@ Next Steps:
 
 ## Generated Files
 
-### `.arij/config.yaml`
+### `.tract/config.yaml`
 ```yaml
 prefix: APP
 name: Application Development
@@ -116,7 +116,7 @@ fields:
 tag_field: labels
 ```
 
-### `.arij/components.yaml`
+### `.tract/components.yaml`
 ```yaml
 components:
   API:
@@ -165,14 +165,14 @@ Original Jira project: https://jira.company.com/rest/api/2/project/APP
 
 1. **Review the configuration:**
    ```bash
-   cat .arij/config.yaml
+   cat .tract/config.yaml
    # Edit if needed
-   vim .arij/config.yaml
+   vim .tract/config.yaml
    ```
 
 2. **Add component paths** (optional):
    ```bash
-   vim .arij/components.yaml
+   vim .tract/components.yaml
    # Add paths like:
    #   API:
    #     paths:

@@ -79,7 +79,7 @@ tract onboard --jira https://jira.company.com --project APP
 
 **What it creates:**
 ```
-.arij/
+.tract/
   config.yaml         # Project configuration (types, statuses, priorities)
   components.yaml     # Component mappings (if project has components)
 projects/
@@ -111,7 +111,7 @@ tract onboard \
 ```
 
 **What this does:**
-1. Creates ticket repository with `.arij/` config
+1. Creates ticket repository with `.tract/` config
 2. Initializes as git repository
 3. Pushes to remote (if `--remote` provided)
 4. Adds as git submodule at `~/work/apps/tickets/`
@@ -124,7 +124,7 @@ tract onboard \
 ├── .gitattributes             # tickets/ export-ignore
 ├── .gitmodules                # submodule definition
 ├── tickets/                   # ← git submodule
-│   ├── .arij/
+│   ├── .tract/
 │   │   └── config.yaml
 │   ├── tickets/
 │   ├── projects/
@@ -144,7 +144,7 @@ tract onboard \
 ```bash
 # Create release tarball for clients
 git archive HEAD -o app-v2.0.tar.gz
-# Result: Contains src/ and code, NO tickets/ or .arij/
+# Result: Contains src/ and code, NO tickets/ or .tract/
 ```
 
 **Configuring remote later:**
@@ -202,13 +202,13 @@ tract onboard --jira https://jira.company.com --project APP
 
 **2. Review configuration:**
 ```bash
-cat .arij/config.yaml
-# Edit if needed: vim .arij/config.yaml
+cat .tract/config.yaml
+# Edit if needed: vim .tract/config.yaml
 ```
 
 **3. Configure components (if applicable):**
 ```bash
-vim .arij/components.yaml
+vim .tract/components.yaml
 # Add file paths for each component
 ```
 
@@ -284,7 +284,7 @@ tract onboard \
 - For gradual migration scenarios
 
 **`tract validate`** (planned)
-- Validate ticket files against .arij schema
+- Validate ticket files against .tract schema
 - Check for missing required fields
 
 ## Development

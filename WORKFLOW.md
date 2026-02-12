@@ -3,7 +3,7 @@
 ## The Vision
 
 **LLM as UI, Git as Database**
-- Use Copilot CLI with `.arij/SCHEMA.md` as your ticket interface
+- Use Copilot CLI with `.tract/SCHEMA.md` as your ticket interface
 - No manual editing, no web UI
 - All operations via natural language
 - Git handles version control and collaboration
@@ -44,7 +44,7 @@ cd ..
 ├── .gitattributes          # tickets/ export-ignore (clients won't see tickets)
 ├── .gitmodules             # submodule configuration
 ├── tickets/                # ← Git submodule (separate repo)
-│   ├── .arij/
+│   ├── .tract/
 │   │   ├── SCHEMA.md       # API spec for LLM
 │   │   ├── config.yaml     # Types, statuses, priorities from Jira
 │   │   └── components.yaml # Components from Jira
@@ -60,9 +60,9 @@ cd ..
 
 ```bash
 cd ~/work/apps/tickets
-cat .arij/config.yaml       # Verify types, statuses, priorities
-cat .arij/components.yaml   # Add file paths to components
-cat .arij/SCHEMA.md         # Read this - it's the LLM's API spec
+cat .tract/config.yaml       # Verify types, statuses, priorities
+cat .tract/components.yaml   # Add file paths to components
+cat .tract/SCHEMA.md         # Read this - it's the LLM's API spec
 ```
 
 **Step 3: Commit parent repo**
@@ -82,7 +82,7 @@ git push
 You: "Create a bug ticket for the login timeout issue"
 
 Copilot: 
-- Reads .arij/SCHEMA.md to understand format
+- Reads .tract/SCHEMA.md to understand format
 - Creates tickets/APP-001.md with proper frontmatter
 - Uses correct type (bug), status (to-do), etc.
 - Commits to tickets repo
@@ -129,7 +129,7 @@ Copilot:
 ```bash
 cd ~/work/apps
 git archive HEAD -o app-v2.0.tar.gz
-# Result: src/ and code only, NO tickets/ or .arij/
+# Result: src/ and code only, NO tickets/ or .tract/
 ```
 
 **Why it works:**
@@ -175,7 +175,7 @@ git push
 
 ## Copilot CLI Examples
 
-Based on `.arij/SCHEMA.md`, you can ask:
+Based on `.tract/SCHEMA.md`, you can ask:
 
 **Ticket Operations:**
 - "Create a story for implementing OAuth"
@@ -241,8 +241,8 @@ git commit -m "Update tickets to latest"
 ```
 
 **Copilot CLI not understanding schema:**
-- Make sure `.arij/SCHEMA.md` is present
-- Ask Copilot to "read .arij/SCHEMA.md first"
+- Make sure `.tract/SCHEMA.md` is present
+- Ask Copilot to "read .tract/SCHEMA.md first"
 - Reference specific sections: "According to SCHEMA.md section 4..."
 
 ## Next Steps
