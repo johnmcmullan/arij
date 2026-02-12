@@ -4,9 +4,11 @@ const simpleGit = require('simple-git');
 
 class WorklogManager {
   constructor(config) {
-    this.repoPath = config.repoPath;
-    this.worklogsDir = path.join(this.repoPath, 'worklogs');
-    this.git = simpleGit(this.repoPath);
+    // Separate worklog path from ticket repo path
+    // This allows central worklogs across all projects
+    this.worklogPath = config.worklogPath || path.join(config.repoPath, 'worklogs');
+    this.worklogsDir = this.worklogPath;
+    this.git = simpleGit(this.worklogPath);
     this.jiraClient = config.jiraClient;
     this.syncUser = config.syncUser || 'tract-sync';
     this.syncEmail = config.syncEmail || 'tract-sync@localhost';
@@ -14,6 +16,15 @@ class WorklogManager {
     // Ensure worklogs directory exists
     if (!fs.existsSync(this.worklogsDir)) {
       fs.mkdirSync(this.worklogsDir, { recursive: true });
+      
+      // Initialize git if not already a repo
+      if (!fs.existsSync(path.join(this.worklogsDir, '.git'))) {
+        const git = simpleGit(this.worklogsDir);
+        git.init()
+          .then(() => git.addConfig('user.name', this.syncUser))
+          .then(() => git.addConfig('user.email', this.syncEmail))
+          .catch(err => console.error('Failed to init worklogs git repo:', err));
+      }
     }
     
     // Track pending commits

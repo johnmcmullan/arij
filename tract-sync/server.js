@@ -16,6 +16,7 @@ const config = {
   jiraUsername: process.env.JIRA_USERNAME,
   jiraPassword: process.env.JIRA_PASSWORD,
   repoPath: process.env.TRACT_REPO_PATH,
+  worklogPath: process.env.WORKLOG_REPO_PATH || process.env.TRACT_REPO_PATH, // Default to same as tickets
   syncUser: process.env.SYNC_USER || 'tract-sync',
   syncEmail: process.env.SYNC_EMAIL || 'tract-sync@localhost',
   port: process.env.PORT || 3000,
@@ -52,6 +53,7 @@ const jiraClient = axios.create({
 
 const worklogManager = new WorklogManager({
   repoPath: config.repoPath,
+  worklogPath: config.worklogPath, // Can be separate from ticket repo
   jiraClient: jiraClient,
   syncUser: config.syncUser,
   syncEmail: config.syncEmail
