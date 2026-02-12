@@ -70,14 +70,28 @@ success "Git configured"
 if [ ! -f "${TRACT_HOME}/bin/tract" ]; then
   info "Installing tract CLI..."
   
-  # Clone tract repo to temp location
-  TEMP_DIR=$(mktemp -d)
-  git clone https://github.com/johnmcmullan/tract.git "$TEMP_DIR" 2>/dev/null || \
-    error "Failed to clone tract repo. Please check GitHub URL."
+  # Determine source directory
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  TRACT_SOURCE=""
+  
+  # Check if running from tract repo
+  if [ -f "$SCRIPT_DIR/../tract-cli/bin/tract.js" ]; then
+    info "Using local tract installation from $SCRIPT_DIR/.."
+    TRACT_SOURCE="$SCRIPT_DIR/.."
+  else
+    # Clone from GitHub
+    info "Cloning tract from GitHub..."
+    TEMP_DIR=$(mktemp -d)
+    if git clone https://github.com/johnmcmullan/tract.git "$TEMP_DIR" 2>/dev/null; then
+      TRACT_SOURCE="$TEMP_DIR"
+    else
+      error "Failed to clone tract repo and no local installation found.\n   Please push to GitHub or run from tract directory."
+    fi
+  fi
   
   # Copy CLI to /opt/tract
   mkdir -p "${TRACT_HOME}/bin"
-  cp -r "$TEMP_DIR/tract-cli" "${TRACT_HOME}/"
+  cp -r "$TRACT_SOURCE/tract-cli" "${TRACT_HOME}/"
   ln -sf "${TRACT_HOME}/tract-cli/bin/tract.js" "${TRACT_HOME}/bin/tract"
   
   # Install dependencies
@@ -85,12 +99,14 @@ if [ ! -f "${TRACT_HOME}/bin/tract" ]; then
   npm install --production --silent
   
   # Copy sync service
-  cp -r "$TEMP_DIR/tract-sync" "${TRACT_HOME}/"
+  cp -r "$TRACT_SOURCE/tract-sync" "${TRACT_HOME}/"
   cd "${TRACT_HOME}/tract-sync"
   npm install --production --silent
   
-  # Cleanup
-  rm -rf "$TEMP_DIR"
+  # Cleanup if we cloned to temp
+  if [ -n "$TEMP_DIR" ] && [ -d "$TEMP_DIR" ]; then
+    rm -rf "$TEMP_DIR"
+  fi
   
   # Fix permissions
   chown -R "$TRACT_USER:$TRACT_USER" "${TRACT_HOME}"
