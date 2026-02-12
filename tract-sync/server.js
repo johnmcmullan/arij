@@ -1,0 +1,135 @@
+#!/usr/bin/env node
+
+const express = require('express');
+const bodyParser = require('body-parser');
+const GitToJiraSync = require('./lib/git-to-jira-sync');
+const JiraToGitSync = require('./lib/jira-to-git-sync');
+
+const app = express();
+app.use(bodyParser.json());
+
+// Configuration from environment
+const config = {
+  jiraUrl: process.env.JIRA_URL || 'https://jira.orcsoftware.com',
+  jiraUsername: process.env.JIRA_USERNAME,
+  jiraPassword: process.env.JIRA_PASSWORD,
+  repoPath: process.env.TRACT_REPO_PATH,
+  syncUser: process.env.SYNC_USER || 'tract-sync',
+  syncEmail: process.env.SYNC_EMAIL || 'tract-sync@localhost',
+  port: process.env.PORT || 3000,
+  webhookSecret: process.env.WEBHOOK_SECRET
+};
+
+// Validate required config
+if (!config.jiraUsername || !config.jiraPassword) {
+  console.error('❌ JIRA_USERNAME and JIRA_PASSWORD required');
+  process.exit(1);
+}
+
+if (!config.repoPath) {
+  console.error('❌ TRACT_REPO_PATH required');
+  process.exit(1);
+}
+
+// Initialize sync handlers
+const gitToJira = new GitToJiraSync(config);
+const jiraToGit = new JiraToGitSync(config);
+
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', service: 'tract-sync' });
+});
+
+// Webhook endpoint for Jira
+app.post('/webhook/jira', async (req, res) => {
+  try {
+    // Verify webhook secret if configured
+    if (config.webhookSecret) {
+      const signature = req.headers['x-jira-webhook-signature'];
+      if (signature !== config.webhookSecret) {
+        return res.status(401).json({ error: 'Invalid webhook signature' });
+      }
+    }
+    
+    // Handle event
+    await jiraToGit.handleWebhookEvent(req.body);
+    
+    res.json({ status: 'ok' });
+  } catch (error) {
+    console.error('❌ Webhook error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Webhook endpoint for Git (post-receive hook will POST here)
+app.post('/webhook/git', async (req, res) => {
+  try {
+    const { changedFiles } = req.body;
+    
+    if (!changedFiles || changedFiles.length === 0) {
+      return res.json({ status: 'ok', message: 'No changes' });
+    }
+    
+    console.log(`\n📥 Received git webhook with ${changedFiles.length} changed files`);
+    
+    // Process each changed file
+    for (const file of changedFiles) {
+      if (!file.path.startsWith('issues/') || !file.path.endsWith('.md')) {
+        continue;
+      }
+      
+      await gitToJira.processChangedFile(
+        file.path,
+        file.oldContent,
+        file.newContent
+      );
+    }
+    
+    res.json({ status: 'ok', processed: changedFiles.length });
+  } catch (error) {
+    console.error('❌ Git webhook error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Manual sync endpoint (for testing/debugging)
+app.post('/sync/git-to-jira/:issueKey', async (req, res) => {
+  try {
+    const { issueKey } = req.params;
+    const filePath = `issues/${issueKey}.md`;
+    const fs = require('fs');
+    const path = require('path');
+    
+    const fullPath = path.join(config.repoPath, filePath);
+    const content = fs.readFileSync(fullPath, 'utf8');
+    
+    await gitToJira.processChangedFile(filePath, content, content);
+    
+    res.json({ status: 'ok', synced: issueKey });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Start server
+app.listen(config.port, () => {
+  console.log(`
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔄 Tract Sync Service Started
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Port:      ${config.port}
+Jira:      ${config.jiraUrl}
+Repo:      ${config.repoPath}
+Sync User: ${config.syncUser}
+
+Endpoints:
+  GET  /health              - Health check
+  POST /webhook/jira        - Jira webhook
+  POST /webhook/git         - Git post-receive hook
+  POST /sync/git-to-jira/:issueKey - Manual sync
+
+Ready to sync! 🚀
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  `);
+});
