@@ -221,6 +221,11 @@ class TicketImporter {
       return '```' + (lang || '') + '\n' + code.trim() + '\n```';
     });
     
+    // Noformat blocks (same as code blocks but no language)
+    converted = converted.replace(/\{noformat\}([\s\S]*?)\{noformat\}/g, (match, content) => {
+      return '```\n' + content.trim() + '\n```';
+    });
+    
     // Inline code
     converted = converted.replace(/\{\{([^}]+)\}\}/g, '`$1`');
     
