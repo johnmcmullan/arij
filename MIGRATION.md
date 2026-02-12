@@ -128,7 +128,7 @@ Users
 |---------|------|--------------|---------|
 | Create/Update tickets | ✅ | ✅ (CLI + Web) | - |
 | Comments | ✅ | ✅ (Embedded in MD) | - |
-| Attachments | ✅ | ❌ **Missing** | ⚠️ Medium priority |
+| Attachments | ✅ | ✅ **Links to /tb/shared** | ✅ Already works! |
 | Kanban board | ✅ | ✅ (Web UI) | - |
 | Search/Filter | ✅ | ✅ (CLI + Web) | - |
 | Components | ✅ | ✅ (Mapped to code) | - |
@@ -137,10 +137,16 @@ Users
 | Reporting | ✅ | ❌ **Missing** | 📊 Nice-to-have |
 | Sprints | ✅ | ⚠️ Partial (SCHEMA defined) | 📊 Nice-to-have |
 
+**File attachments handled via shared storage:**
+- Jira tickets contain links like `/tb/shared/tbricks/JIRA/APP-12345/file.log`
+- These links are preserved in markdown during import
+- Users already access files via NFS mount at `/tb/shared`
+- No file upload/storage needed in Tract!
+
 **Critical for migration:**
 1. ✅ Core ticket management - **Ready**
-2. ⚠️ Email notifications - **Needed** (git hooks can do this)
-3. ⚠️ File attachments - **Needed** (can use Git LFS or S3)
+2. ✅ File access - **Already works** (links to /tb/shared)
+3. ⚠️ Email notifications - **Needed** (git hooks can do this)
 
 **Can wait:**
 - Reporting (can query with LLM or simple scripts)
@@ -331,8 +337,9 @@ git push
 
 1. Deploy staging web UI
 2. Build email notification system (git hooks)
-3. Build file attachment support (optional)
-4. Create team training materials
+3. Create team training materials
+
+**Note:** File attachments not needed - tickets already contain links to shared NFS storage at `/tb/shared`
 
 ### Month 2
 
@@ -355,13 +362,13 @@ git push
 - ✅ Components mapped to code
 - ✅ CLI working
 - ✅ Web UI exists
+- ✅ File links to /tb/shared preserved
 
 **Need to finish:**
 - ⚠️ Configure remotes (1 hour)
 - ⚠️ Deploy web UI (1 day)
 - ⚠️ Email notifications (2-3 days)
-- ⚠️ File attachments (3-5 days - optional)
 
 **Then:** Full Jira replacement ready! 🎉
 
-The hard work is done - you've imported 3,347 tickets and proven the architecture works. Now just deployment + polish.
+The hard work is done - you've imported 3,347 tickets and proven the architecture works. File attachments aren't needed since you already use shared NFS storage at /tb/shared. Just deploy + add notifications!
