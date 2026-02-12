@@ -24,8 +24,8 @@ async function onboard(options) {
   
   if (isSubmoduleMode) {
     parentRepoDir = outputDir;
-    // Create temp directory for ticket repo
-    const tmpDir = path.join(os.tmpdir(), `tract-onboard-${projectKey}-${Date.now()}`);
+    // Create temp directory in parent repo's directory (same filesystem)
+    const tmpDir = path.join(parentRepoDir, `.tract-tmp-${projectKey}-${Date.now()}`);
     ticketRepoDir = tmpDir;
     
     console.log(chalk.bold.cyan('📦 Submodule Mode Enabled\n'));
