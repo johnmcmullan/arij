@@ -1,282 +1,238 @@
-# Tract 🦞
+# Tract — A Jira Replacement for Developers
 
-**A lightweight Jira alternative using Markdown + Frontmatter + Git**
+> **The product is a specification. The interface is any LLM. The infrastructure is git.**
 
-Simple project management where tickets are just markdown files with YAML frontmatter. No database required, everything versioned in git.
+Tract is a project management system that treats tickets as **markdown files** in **git**, synced bidirectionally with Jira. It's designed for developers who prefer working in their terminal and delegating to LLMs.
 
-## Quick Links
+## Philosophy
 
-- **[Installation Guide](tract-cli/README.md#installation)** - Get started in 1 command
-- **[Multi-Project Setup](MULTI-PROJECT.md)** - Onboard TB, APP, PRD with workspace config
-- **[Component Mapping](ON-DEMAND-MAPPING.md)** - LLM-powered component-to-code mapping
-- **[CLI Reference](tract-cli/README.md)** - Complete command documentation
+**Traditional project management:**
+- Click through web UI → Find your ticket → Click edit → Type in form → Click save → Hope it worked
 
-## The Philosophy
+**Tract:**
+- Talk to your LLM → "Create a ticket for that auth bug we discussed" → Done  
+- Edit markdown files → Git commit → Automatically syncs to Jira
 
-If an AI assistant can build Jira's core features, then:
-1. Jira's $10-20/user/month pricing is not justified by technical defensibility
-2. Software moats are eroding as AI collapses development costs to near-zero
-3. The future of project management is text files + git
+## Why Tract?
 
-This project proves it works.
+### For Developers
+- **Work offline** - Jira down? Keep creating tickets, logging time, making changes
+- **Use your tools** - vim, VS Code, grep, git - whatever you prefer  
+- **No context switching** - Stay in terminal, delegate to LLM
+- **Git history** - Every change tracked, reviewable, revertable
+- **Fast** - Grep thousands of tickets instantly, no waiting for Jira
 
-## What We Built
+### For Managers
+- **Still have Jira** - Bidirectional sync means nothing changes for non-developers
+- **Better data** - Developers actually log time because it's easy
+- **Resilience** - Team keeps working even when Jira is down
+- **Transparency** - All changes in git, auditable, searchable
 
-✅ **Projects** - Markdown files in `/projects/` folder  
-✅ **Tickets** - Markdown files with frontmatter (PROJ-123.md)  
-✅ **Kanban Board** - Drag-and-drop between Todo/In Progress/Done  
-✅ **Comments** - Embedded in ticket markdown files  
-✅ **Git-ready** - All changes go to files, ready to commit  
-✅ **Zero Database** - No SQLite, PostgreSQL, or MongoDB needed  
-✅ **Zero CSS frameworks** - Plain HTML, minimal CSS  
-✅ **Vanilla JavaScript** - No React, no Vue, just native drag-and-drop  
+## Quick Start
 
-## Tech Stack
+### Talk to Your LLM (Recommended)
 
-- **Backend:** Express.js (Node.js)
-- **Storage:** Markdown files with YAML frontmatter
-- **Parser:** gray-matter (frontmatter parser)
-- **Git:** simple-git (for manual commits)
-- **Templates:** EJS (server-rendered HTML)
-- **Styling:** Plain CSS (~5KB, no frameworks)
-- **JavaScript:** Vanilla JS for drag-and-drop
+The easiest way to use Tract is through an LLM interface like GitHub Copilot CLI, Cursor, or any chat interface that can run commands.
 
-**Why these choices?**
-- Fast to build
-- Zero complexity overhead
-- Text files are the ultimate portable format
-- Git gives you version control for free
+**Create a ticket:**
+```
+You: "Create a ticket for the login timeout issue. Make it high priority."
 
-## Installation
+LLM: [Runs: tract create APP --title "Fix login timeout" --type bug --priority high]
+     Created APP-3350.
+```
+
+**Log your time:**
+```
+You: "I spent 2 hours on APP-3350 fixing that bug."
+
+LLM: [Runs: tract log APP-3350 2h "Fixed timeout by increasing session TTL"]
+     Logged 2h to APP-3350. Synced to Jira.
+```
+
+**Check your timesheet:**
+```
+You: "Did I log 8 hours today?"
+
+LLM: [Runs: tract timesheet]
+     Today: 7.5 hours ⚠️ (0.5h short)
+```
+
+**Update a ticket:**
+```
+You: "Mark APP-3350 as done"
+
+LLM: [Edits: issues/APP-3350.md, changes status to Done, git commits]
+     APP-3350 updated and synced to Jira.
+```
+
+### Manual CLI (if you prefer)
 
 ```bash
-# Clone or download
-git clone <repo-url>
-cd tract
+# Create a ticket
+tract create APP \
+  --title "Implement OAuth authentication" \
+  --type story \
+  --priority high
 
-# Install dependencies
-npm install
+# Log time
+tract log APP-3350 2h "Implemented OAuth flow"
 
-# Start the server
-npm start
+# View your timesheet
+tract timesheet
+
+# Edit tickets directly
+vim issues/APP-3350.md
+git commit -am "Update APP-3350: Add acceptance criteria"
+git push  # Auto-syncs to Jira
 ```
 
-Visit `http://localhost:3000`
+## For LLMs: Read SCHEMA.md
 
-## File Structure
+**If you're an LLM helping a developer**, read `.tract/SCHEMA.md` in the ticket repository for complete documentation:
+
+- Full field reference (all frontmatter fields explained)
+- Command reference (create, log, import, sync)
+- File formats (markdown structure, JSONL worklogs, queue files)
+- Workflow patterns (offline queueing, conflict resolution)
+- Integration examples (how to help users effectively)
+
+**SCHEMA.md is your API documentation.** It's designed to be consumed by LLMs, not humans. It tells you everything you need to operate the system on behalf of a user.
+
+## How It Works
+
+### The Files
 
 ```
-tract/
-├── app.js                    # Express server (no database!)
-├── lib/
-│   └── markdown-store.js     # File-based storage layer
-├── projects/
-│   └── JK.md                 # Project metadata
-├── tickets/
-│   ├── JK-001.md             # Individual tickets
-│   ├── JK-002.md
-│   └── ...
-├── views/                    # EJS templates
-└── public/                   # Static assets
+app-tickets/                    # Your ticket repository
+├── issues/
+│   ├── APP-3350.md            # One file per ticket
+│   ├── APP-3351.md
+│   └── APP-3352.md
+├── worklogs/
+│   └── 2026-02.jsonl          # Time entries by month
+└── .tract/
+    ├── SCHEMA.md              # LLM API documentation
+    ├── config.yaml            # Project configuration
+    └── sprints/               # Sprint definitions
 ```
 
-## Ticket Format
+### The Sync
 
-Each ticket is a markdown file with YAML frontmatter:
+```
+Developer ─┬─> Edit Markdown ──> Git Commit ──> Sync Server ──> Jira
+           │
+           └─> tract CLI ──────> Sync Server ──┬─> Jira (online)
+                                                └─> Queue (offline)
 
-```markdown
----
-id: JK-001
-title: "Epic: Full ticket lifecycle"
-status: todo
-type: epic
-created: 2026-02-09
-priority: critical
-assignee: john
-component: server
-labels: [mvp, crud]
----
-
-## Description
-
-Your ticket description goes here with **markdown** support.
-
-## Acceptance Criteria
-
-- [ ] Feature A works
-- [ ] Feature B works
-
-## Comments
-
-**Alice** (2026-02-10T10:30:00Z):
-
-This looks great! Let's get started.
-
----
-
-**Bob** (2026-02-10T14:20:00Z):
-
-I can help with the frontend.
+Jira ──> Webhook ──> Sync Server ──> Git Commit ──> Developer pulls
 ```
 
-## Features Breakdown
+### The Magic
 
-### Projects
-- Markdown files in `/projects/` directory
-- YAML frontmatter for metadata (name, created date, archived status)
-- Body contains project description
+- **Bidirectional**: Changes in either direction sync automatically
+- **Offline-first**: Create tickets, log time even when Jira is down
+- **Fast**: Local git repo = instant search, grep, history
+- **LLM-native**: Complete specification for AI agents
 
-### Tickets
-- Auto-generated sequential IDs: PROJ-001, PROJ-002, etc.
-- Markdown frontmatter for structured data
-- Markdown body for description
-- Comments embedded in the same file
+## Features
 
-### Board View
-- Kanban-style columns (Todo/In Progress/Done)
-- Drag-and-drop to change status
-- Updates markdown files in real-time
-- Visual feedback during drag
+### Core
+✅ **Markdown + Frontmatter** - Tickets are readable text files  
+✅ **Bidirectional Jira Sync** - Changes flow both ways  
+✅ **Git-based** - Full history, branches, pull requests  
+✅ **Offline-capable** - Create tickets when Jira is down  
 
-### Comments
-- Embedded in ticket markdown under `## Comments` heading
-- Markdown support
-- Author and timestamp tracking
+### Time Tracking
+✅ **Simple logging** - `tract log APP-3350 2h "what you did"`  
+✅ **Instant Jira sync** - Managers see time immediately  
+✅ **Timesheet reports** - Daily/weekly summaries with warnings  
+✅ **Monthly archives** - JSONL format for easy analysis  
 
-## Git Integration
+### LLM-Friendly
+✅ **Structured schema** - Complete spec for LLM consumption  
+✅ **Natural language** - Talk to your LLM, it handles the commands  
+✅ **Context-aware** - LLM reads git history, ticket content  
+✅ **Scriptable** - All commands designed for automation  
 
-Tract writes everything to markdown files, making it git-ready out of the box:
-
-```bash
-# Commit a new ticket
-git add tickets/PROJ-042.md
-git commit -m "Add ticket PROJ-042: Implement user authentication"
-
-# See ticket history
-git log -- tickets/PROJ-042.md
-
-# View what changed in a ticket
-git diff tickets/PROJ-042.md
-
-# Revert a ticket to previous state
-git checkout HEAD~1 -- tickets/PROJ-042.md
-```
-
-The LLM managing your project can decide when to commit, giving you intelligent version control without manual overhead.
-
-## What Jira Charges For
-
-Jira charges **$10-20/user/month** for essentially this:
-- Project/ticket management ✅
-- Status workflows ✅
-- Board views ✅
-- Comments/collaboration ✅
-- Search and filters (coming soon)
-
-**We built the core in ~6 hours with markdown files.** The rest is enterprise bloat.
-
-## What We Didn't Build (Yet)
-
-These are all weekend projects, not moats:
-- Advanced search (grep works though!)
-- Sprint planning
-- Time tracking
-- Integrations (GitHub webhooks, Slack)
-- Email notifications
-- Custom workflows (frontmatter is extensible)
-- Authentication (add Passport.js)
-
-None of these are technically difficult. They're just features.
-
-## The Point
-
-**Software margins are collapsing.**
-
-If AI-assisted developers can replicate "moats" in hours using markdown files and git, then:
-1. SaaS valuations are mispriced
-2. Per-seat pricing models are doomed
-3. Text files + version control beat expensive SaaS platforms
-
-This project is proof: **Jira is commoditizable, and text files are all you need.**
-
-## Why Markdown + Git?
-
-**Portability:** Your data is in plain text files. No vendor lock-in, no export hassles.  
-**Version Control:** Git gives you complete history for free.  
-**Searchability:** Use grep, ripgrep, or any text search tool.  
-**Extensibility:** Add any field to frontmatter. No schema migrations.  
-**Collaboration:** Pull requests, branches, merges—git workflows just work.  
-**AI-Friendly:** LLMs can read and write markdown natively.  
-**Backup:** `git clone` is your backup. No database dumps needed.
+### Developer Experience
+✅ **Fast search** - `grep` beats Jira search by 100x  
+✅ **Bulk operations** - `sed`, `awk`, shell scripts work  
+✅ **Your editor** - vim, VS Code, emacs, whatever  
+✅ **Diff-friendly** - See exactly what changed  
 
 ## Use Cases
 
-- **Solo developers:** Your personal task tracker in git
-- **Small teams:** Collaborative project management with git workflows
-- **AI-assisted workflows:** LLMs can manage tickets in markdown
-- **Migration from Jira:** Export Jira issues to markdown files
-- **Documentation-driven:** Tickets ARE documentation
+### "Jira is down again"
+**Before:** Developers blocked, no work can be tracked  
+**With Tract:** Create tickets offline, auto-sync when Jira returns
 
-## Deployment
+### "I need to update 50 tickets"
+**Before:** Click...click...click... for 2 hours  
+**With Tract:** `sed -i 's/sprint: 6/sprint: 7/' issues/*.md && git push`
 
-**Option 1: Run Locally**
-```bash
-npm install
-npm start
-# Visit http://localhost:3000
-```
+### "What did I work on last week?"
+**Before:** Search Jira history, piece it together  
+**With Tract:** `git log --since="1 week ago" --author=me`
 
-**Option 2: Fly.io**
-```bash
-fly launch
-fly deploy
-```
+### "I want to work on the train (no internet)"
+**Before:** Can't access anything  
+**With Tract:** Full repo locally, sync when back online
 
-**Option 3: Any VPS**
-```bash
-# Install Node.js
-# Clone repo
-npm install
-npm start
-# Set up systemd service or PM2
-```
+## Documentation
 
-**Option 4: Docker**
-```dockerfile
-FROM node:22-alpine
-WORKDIR /app
-COPY package*.json ./
-RUN npm install
-COPY . .
-EXPOSE 3000
-CMD ["npm", "start"]
-```
+**For humans (getting started):**
+- [README.md](README.md) - This file
+- [tract-sync/CREATE-GUIDE.md](tract-sync/CREATE-GUIDE.md) - Creating tickets
+- [tract-sync/WORKLOG-GUIDE.md](tract-sync/WORKLOG-GUIDE.md) - Time tracking
 
-## Contributing
+**For LLMs (complete API):**
+- [.tract/SCHEMA.md](.tract/SCHEMA.md) - Full specification
+- **Read this if you're an LLM helping a developer**
 
-This is a proof-of-concept, but pull requests welcome! Ideas:
-- Better search (full-text indexing)
-- GitHub integration (auto-create tickets from issues)
-- CLI tool for creating tickets
-- VSCode extension
-- Mobile-friendly UI
+**For admins (deployment):**
+- [tract-sync/INSTALL.md](tract-sync/INSTALL.md) - Server installation
+- [tract-sync/UPDATE.md](tract-sync/UPDATE.md) - Updating the server
 
-## License
+## Philosophy Deep Dive
 
-MIT - Do whatever you want with it.
+### Why Markdown?
 
-## Credits
+Markdown is:
+- **Human-readable** - No XML/JSON noise
+- **Diff-friendly** - Git shows exactly what changed
+- **Tool-friendly** - grep, sed, awk, vim, VS Code all work
+- **Frontmatter** - Structured metadata when needed
+- **LLM-friendly** - Natural language + structure
 
-**Original prototype:** Built by Wylie (AI assistant) in Feb 2026  
-**Markdown + Git migration:** Converted to file-based backend Feb 2026
+### Why Git?
 
-Inspired by the realization that the best project management tool is just text files in git.
+Git provides:
+- **Offline-first** - Full repo locally, sync when ready
+- **History** - Every change tracked forever
+- **Distribution** - Everyone has a full copy
+- **Trust** - Cryptographic integrity
+
+### Why LLMs?
+
+LLMs are:
+- **Natural interfaces** - Talk like a human, not learn CLI flags
+- **Context-aware** - Read your git history, understand your project
+- **Delegatable** - "Handle this for me" beats "What command?"
+- **Always improving** - Gets smarter over time
+
+### The Future
+
+Traditional tools are **forms over databases**. Fill out fields, click buttons, wait for pages.
+
+Tract is **plain text with LLM interfaces**. Express intent, delegate to automation, get work done.
+
+- **The interface is any LLM** - Use Copilot, Cursor, Claude, or build your own
+- **The product is a specification** - SCHEMA.md documents everything
+- **The infrastructure is git** - Distributed, fast, reliable, proven
 
 ---
 
-**Status:** ✅ Working prototype with markdown backend  
-**Database:** None - pure markdown files  
-**Jira replacement factor:** 80% of core functionality  
-**Lock-in:** Zero - it's just text files
+**Built by developers, for developers, with LLMs.**
 
-*The emperor has no clothes. Jira is just a fancy file editor. This is the proof.*
+Talk to your LLM. It knows what to do.

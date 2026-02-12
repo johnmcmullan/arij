@@ -1,329 +1,231 @@
 # Tract CLI
 
-Command-line tool for bootstrapping Tract projects from Jira.
+Command-line tool for working with Tract tickets.
 
 ## Installation
 
-**Quick Install (recommended):**
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/johnmcmullan/tract/master/install.sh | bash
-```
-
-This will:
-- Check for Node.js 14+
-- Clone tract to `~/.tract`
-- Install dependencies
-- Create `tract` command globally
-
-**Custom Install Location:**
-
-```bash
-TRACT_INSTALL_DIR=/opt/tract curl -fsSL https://raw.githubusercontent.com/johnmcmullan/tract/master/install.sh | bash
-```
-
-**Manual Installation:**
-
-```bash
-git clone https://github.com/johnmcmullan/tract.git ~/.tract
-cd ~/.tract/tract-cli
-npm install
-ln -s ~/.tract/tract-cli/bin/tract.js /usr/local/bin/tract
-chmod +x ~/.tract/tract-cli/bin/tract.js
-```
-
-**Or from the tract repository (development):**
 ```bash
 cd tract-cli
 npm install
 npm link  # Makes 'tract' command available globally
 ```
 
+## Environment Setup
+
+```bash
+# Set your sync server URL
+export TRACT_SYNC_SERVER=http://tract-server:3100
+
+# Or add to ~/.bashrc
+echo 'export TRACT_SYNC_SERVER=http://tract-server:3100' >> ~/.bashrc
+```
+
 ## Commands
 
-### `tract onboard`
+### `tract create`
 
-Bootstrap a new Tract project from a Jira project.
+Create a new ticket (works offline).
 
 **Usage:**
 ```bash
-tract onboard \
-  --jira https://your-jira.atlassian.net \
-  --project APP \
-  --user john@company.com \
-  --token your-api-token
+tract create APP --title "Fix login bug"
+
+tract create APP \
+  --title "Implement OAuth" \
+  --type story \
+  --priority high \
+  --assignee john.mcmullan \
+  --description "Add OAuth 2.0 support" \
+  --components "Backend,Security" \
+  --labels "auth,oauth"
 ```
 
 **Options:**
-- `--jira <url>` - Jira instance URL (required)
-- `--project <key>` - Jira project key like APP, TB, TINT (required)
-- `--user <username>` - Jira username (or set `JIRA_USERNAME`)
-- `--token <token>` - Jira API token (or set `JIRA_TOKEN`)
-- `--password <password>` - Jira password (or set `JIRA_PASSWORD`)
-- `--output <dir>` - Output directory (defaults to current directory)
-- `--submodule <path>` - Add as git submodule at this path (e.g., `tickets`)
-- `--remote <url>` - Git remote URL for ticket repo (optional, can configure later)
-- `--no-git` - Skip git initialization
+- `--title <text>` - Ticket title (required)
+- `--type <type>` - Issue type: bug, task, story, epic (default: task)
+- `--priority <level>` - Priority: trivial, minor, medium, major, critical, blocker (default: medium)
+- `--assignee <username>` - Assign to user
+- `--description <text>` - Detailed description
+- `--components <list>` - Comma-separated components
+- `--labels <list>` - Comma-separated labels
+- `--server <url>` - Sync server URL (or use TRACT_SYNC_SERVER env var)
 
-**Example:**
+**Offline support:**
+- If Jira is available: Creates ticket immediately, returns real ID (e.g., APP-3350)
+- If Jira is down: Creates temp ID (e.g., APP-TEMP-123), queues for sync
+- Auto-syncs when Jira comes back online
+
+### `tract log`
+
+Log time to a ticket.
+
+**Usage:**
 ```bash
-# Standalone mode - create independent ticket repo
-mkdir ~/projects/app-issues
-cd ~/projects/app-issues
-tract onboard \
-  --jira https://jira.company.com \
-  --project APP \
-  --user $JIRA_USERNAME \
-  --token $JIRA_TOKEN
-
-# Submodule mode - tickets alongside code (RECOMMENDED)
-cd ~/work/apps  # Your code repository
-tract onboard \
-  --jira https://jira.company.com \
-  --project APP \
-  --submodule tickets \
-  --remote git@github.com:company/app-tickets.git
-
-# Submodule mode - configure remote later
-cd ~/work/apps
-tract onboard \
-  --jira https://jira.company.com \
-  --project APP \
-  --submodule tickets
-# Later: cd tickets && git remote add origin <url> && git push -u origin master
-
-# Or with environment variables:
-export JIRA_USERNAME=john@company.com
-export JIRA_TOKEN=your-api-token
-tract onboard --jira https://jira.company.com --project APP
+tract log APP-3350 2h "Fixed authentication bug"
+tract log APP-3351 30m "Code review"
+tract log APP-3352 1d "Implemented feature"
 ```
 
-**What it creates:**
+**Arguments:**
+- `<issue>` - Issue key (e.g., APP-3350)
+- `<time>` - Time spent (e.g., 2h, 30m, 1d, 1.5h)
+- `[comment]` - Work description (optional)
+
+**Options:**
+- `--server <url>` - Sync server URL
+- `--author <name>` - Author name (defaults to git user.name)
+- `--started <datetime>` - Start time (ISO 8601, defaults to now)
+
+**Time formats:**
+- `2h` - 2 hours
+- `30m` - 30 minutes
+- `1d` - 1 day (8 hours)
+- `1.5h` - 1.5 hours
+
+### `tract timesheet`
+
+View your timesheet.
+
+**Usage:**
+```bash
+# Today's timesheet
+tract timesheet
+
+# Specific date
+tract timesheet --date 2026-02-12
+
+# This week
+tract timesheet --week
+
+# Specific week
+tract timesheet --week 2026-W07
+
+# This month
+tract timesheet --month 2026-02
+
+# Different author
+tract timesheet john.doe
+
+# Export formats
+tract timesheet --format csv > timesheet.csv
+tract timesheet --format json > timesheet.json
 ```
-.tract/
-  config.yaml         # Project configuration (types, statuses, priorities)
-  components.yaml     # Component mappings (if project has components)
-projects/
-  APP.md              # Project metadata
-tickets/              # Directory for issue tickets (empty initially)
-README.md             # Project README
-.gitignore            # Git ignore file
+
+**Options:**
+- `[author]` - Author name (defaults to git user.name)
+- `--server <url>` - Sync server URL
+- `--date <date>` - Specific date (YYYY-MM-DD)
+- `--week [week]` - ISO week (e.g., 2026-W07, or current week if no value)
+- `--month <month>` - Month (YYYY-MM)
+- `--format <format>` - Output format: text, json, csv (default: text)
+
+**Output:**
+```
+Timesheet for john.mcmullan (2026-02-12)
+
+APP-3350  2.0h  Fixed authentication bug
+APP-3351  0.5h  Code review
+APP-3352  4.0h  Implemented OAuth flow
+
+Total: 6.5h ⚠️ (1.5h short of 8h)
 ```
 
-**What it fetches from Jira:**
-- Project details (name, description, lead)
-- Issue types (Bug, Story, Task, Epic, etc.)
-- Workflow statuses (To Do, In Progress, Done, etc.)
-- Priorities (Blocker, Critical, Major, Minor, etc.)
-- Components (with descriptions)
-- Custom fields (for future use)
+### `tract worklogs`
 
-## Submodule Mode (Recommended for Code Repositories)
+View worklog entries for a specific issue.
 
-When tickets should live alongside your code, use `--submodule` to add tickets as a git submodule:
+**Usage:**
+```bash
+tract worklogs APP-3350
+```
+
+**Options:**
+- `--server <url>` - Sync server URL
+
+**Output:**
+```
+Worklogs for APP-3350
+
+2026-02-12 09:00  john.mcmullan  2.0h  Fixed authentication bug
+2026-02-11 14:00  sarah.jones    1.5h  Code review
+2026-02-10 10:00  john.mcmullan  4.0h  Initial implementation
+
+Total logged: 7.5h
+```
+
+## LLM Usage
+
+Tract is designed to be used through LLMs. Instead of memorizing commands, talk to your LLM:
+
+**Instead of:**
+```bash
+tract create APP --title "Fix login timeout" --type bug --priority high --description "..."
+```
+
+**Just say:**
+```
+"Create a ticket for the login timeout issue. Make it high priority."
+```
+
+**Your LLM will:**
+1. Read SCHEMA.md to understand the system
+2. Extract details from your conversation
+3. Run the appropriate command
+4. Tell you what it did
+
+## Working with Tickets
+
+### Edit Directly
+
+Tickets are markdown files. Edit them directly:
 
 ```bash
-cd ~/work/apps  # Your code repository
-tract onboard \
-  --jira https://jira.company.com \
-  --project APP \
-  --submodule tickets \
-  --remote git@github.com:company/app-tickets.git
+vim issues/APP-3350.md
+git commit -am "Update APP-3350: Add acceptance criteria"
+git push  # Auto-syncs to Jira via webhook
 ```
 
-**What this does:**
-1. Creates ticket repository with `.tract/` config
-2. Initializes as git repository
-3. Pushes to remote (if `--remote` provided)
-4. Adds as git submodule at `~/work/apps/tickets/`
-5. Creates `.gitattributes` with `export-ignore` rules
-6. Commits submodule to parent code repo
+### Bulk Operations
 
-**Result structure:**
-```
-~/work/apps/                   # Your code repository
-├── .gitattributes             # tickets/ export-ignore
-├── .gitmodules                # submodule definition
-├── tickets/                   # ← git submodule
-│   ├── .tract/
-│   │   └── config.yaml
-│   ├── tickets/
-│   ├── projects/
-│   └── README.md
-├── src/                       # your application code
-└── README.md
-```
+Use standard Unix tools:
 
-**Benefits:**
-- **Tickets alongside code** - IDE/context available
-- **Separate git history** - ticket changes don't clutter code commits
-- **Clean client exports** - `git archive` excludes tickets (via export-ignore)
-- **LLM-friendly** - Copilot CLI can work with both code and tickets
-- **Version locking** - Can pin ticket state to code releases
-
-**Client distribution:**
 ```bash
-# Create release tarball for clients
-git archive HEAD -o app-v2.0.tar.gz
-# Result: Contains src/ and code, NO tickets/ or .tract/
+# Update all tickets in sprint 6 to sprint 7
+sed -i 's/sprint: 6/sprint: 7/' issues/APP-*.md
+git commit -am "Move tickets to sprint 7"
+git push
+
+# Find all high-priority bugs
+grep -l "priority: high" issues/*.md | xargs grep "type: bug"
+
+# List tickets assigned to you
+grep -l "assignee: $(git config user.name)" issues/*.md
 ```
-
-**Configuring remote later:**
-If you didn't provide `--remote` during onboarding:
-```bash
-cd ~/work/apps/tickets
-git remote add origin git@github.com:company/app-tickets.git
-git push -u origin master
-```
-
-## Authentication
-
-The tool supports multiple authentication methods:
-
-**1. API Token (Recommended for Jira Cloud):**
-```bash
-tract onboard --user email@company.com --token your-api-token ...
-```
-
-**2. Password (Jira Server/Data Center):**
-```bash
-tract onboard --user username --password your-password ...
-```
-
-**3. Environment Variables:**
-```bash
-export JIRA_USERNAME=john@company.com
-export JIRA_TOKEN=your-api-token
-# or
-export JIRA_PASSWORD=your-password
-
-tract onboard --jira https://jira.company.com --project APP
-```
-
-### Getting a Jira API Token
-
-**Jira Cloud:**
-1. Go to https://id.atlassian.com/manage-profile/security/api-tokens
-2. Click "Create API token"
-3. Give it a name like "Tract CLI"
-4. Copy the token (you won't see it again!)
-
-**Jira Server/Data Center:**
-- Use your regular password
-- Or generate a Personal Access Token in user settings
-
-## Workflow
-
-**1. Onboard a project:**
-```bash
-mkdir ~/projects/app-issues
-cd ~/projects/app-issues
-tract onboard --jira https://jira.company.com --project APP
-```
-
-**2. Review configuration:**
-```bash
-cat .tract/config.yaml
-# Edit if needed: vim .tract/config.yaml
-```
-
-**3. Configure components (if applicable):**
-```bash
-vim .tract/components.yaml
-# Add file paths for each component
-```
-
-**4. Start using Tract:**
-```bash
-# Option A: Create tickets manually
-vim tickets/APP-001.md
-
-# Option B: Use Tract web UI
-# (Start Tract server and point it to this directory)
-
-# Option C: Import existing Jira issues (future feature)
-tract import --project APP
-```
-
-## Examples
-
-**Onboard multiple projects:**
-```bash
-for project in APP TB TINT TSD; do
-  mkdir ~/projects/${project,,}-issues
-  cd ~/projects/${project,,}-issues
-  tract onboard --jira https://jira.company.com --project $project
-done
-```
-
-**Onboard to a specific directory:**
-```bash
-tract onboard \
-  --jira https://jira.company.com \
-  --project APP \
-  --output ~/projects/app-issues
-```
-
-**Onboard without git initialization:**
-```bash
-tract onboard \
-  --jira https://jira.company.com \
-  --project APP \
-  --no-git
-```
-
-## Troubleshooting
-
-**"401 Unauthorized":**
-- Check your username and token/password
-- For Jira Cloud, make sure you're using an API token, not your password
-- Verify credentials with: `curl -u email@company.com:token https://jira.company.com/rest/api/2/myself`
-
-**"404 Not Found":**
-- Verify the project key exists: `--project APP`
-- Check you have permission to view the project
-- Try accessing the project in your browser first
-
-**"Directory not empty":**
-- The tool requires an empty directory (except .git)
-- Use a different output directory or clean up existing files
-
-**"ENOTFOUND" or connection errors:**
-- Check the Jira URL is correct
-- Verify you can access it in a browser
-- Check for VPN or firewall issues
-
-## Future Commands
-
-**`tract import`** (planned)
-- Import existing Jira issues as markdown files
-- Preserves history, comments, attachments
-- Configurable date ranges and filters
-
-**`tract sync`** (planned)
-- Bidirectional sync between Tract and Jira
-- For gradual migration scenarios
-
-**`tract validate`** (planned)
-- Validate ticket files against .tract schema
-- Check for missing required fields
 
 ## Development
 
-**Run locally:**
+### Running Tests
+
 ```bash
-cd tract-cli
-npm install
-node bin/tract.js onboard --help
+npm test
 ```
 
-**Link for global use:**
+### Local Development
+
 ```bash
+# Link for development
 npm link
-tract --version
+
+# Make changes
+vim bin/tract.js
+
+# Test immediately
+tract create APP --title "Test"
 ```
 
-**Debug mode:**
-```bash
-NODE_DEBUG=* tract onboard ...
-```
+## See Also
+
+- [CREATE-GUIDE.md](../tract-sync/CREATE-GUIDE.md) - Detailed ticket creation guide
+- [WORKLOG-GUIDE.md](../tract-sync/WORKLOG-GUIDE.md) - Time tracking guide
+- [SCHEMA.md](../.tract/SCHEMA.md) - Complete specification (for LLMs)
+- [README.md](../README.md) - Project overview and philosophy
