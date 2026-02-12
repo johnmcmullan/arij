@@ -103,25 +103,28 @@ Total: 6h
 ```
 Developer → tract log → HTTP POST → Sync Server → Both:
                                                      ├─> Jira API (immediate)
-                                                     └─> worklogs/*.jsonl + git commit (batched)
+                                                     └─> worklogs/YYYY-MM.jsonl + git commit (batched)
 ```
 
 ### Benefits
 - ✅ **Instant Jira sync** - Managers see time immediately
 - ✅ **No git noise** - Commits batched every 5 minutes
-- ✅ **Still in git** - Full audit trail in `worklogs/*.jsonl`
+- ✅ **Still in git** - Full audit trail in `worklogs/YYYY-MM.jsonl`
 - ✅ **Works from anywhere** - Don't need to be in repo directory
 - ✅ **Scriptable** - Easy to automate timesheet entry
+- ✅ **Easy archiving** - One file per month, can compress old months
 
 ### Storage Format
 
-Worklogs stored in JSONL (JSON Lines) format:
+Worklogs stored in monthly JSONL (JSON Lines) files:
 ```
-worklogs/APP-1002.jsonl:
-{"author":"john","started":"2026-02-12T09:00:00Z","seconds":7200,"comment":"Fixed auth bug"}
-{"author":"sarah","started":"2026-02-12T14:00:00Z","seconds":3600,"comment":"Code review"}
+worklogs/2026-02.jsonl:
+{"issue":"APP-1002","author":"john","started":"2026-02-12T09:00:00Z","seconds":7200,"comment":"Fixed auth bug"}
+{"issue":"APP-1003","author":"sarah","started":"2026-02-12T14:00:00Z","seconds":3600,"comment":"Code review"}
+{"issue":"APP-1002","author":"john","started":"2026-02-12T14:00:00Z","seconds":5400,"comment":"Testing"}
 ```
 
+One file per month (e.g., `2026-02.jsonl`) contains all time entries for that month across all issues.
 Append-only, no merge conflicts, easy to parse programmatically.
 
 ## Offline Support

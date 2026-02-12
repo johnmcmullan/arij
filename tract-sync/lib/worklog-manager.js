@@ -34,16 +34,18 @@ class WorklogManager {
     // Default started to now if not provided
     const startedDate = started || new Date().toISOString();
     
-    // Create JSONL entry
+    // Create JSONL entry with issue key
     const logEntry = {
+      issue: issueKey,
       author: author,
       started: startedDate,
       seconds: seconds,
       comment: comment || ''
     };
     
-    // Append to file
-    const filePath = path.join(this.worklogsDir, `${issueKey}.jsonl`);
+    // Append to monthly file (e.g., 2026-02.jsonl)
+    const month = startedDate.substring(0, 7); // YYYY-MM
+    const filePath = path.join(this.worklogsDir, `${month}.jsonl`);
     fs.appendFileSync(filePath, JSON.stringify(logEntry) + '\n', 'utf8');
     
     console.log(`📝 Added worklog: ${issueKey} - ${author} - ${time}`);
@@ -67,40 +69,72 @@ class WorklogManager {
     return logEntry;
   }
 
-  // Get all worklogs for an issue
+  // Get all worklogs for an issue (scans all monthly files)
   getWorklogs(issueKey) {
-    const filePath = path.join(this.worklogsDir, `${issueKey}.jsonl`);
+    const files = fs.readdirSync(this.worklogsDir)
+      .filter(f => f.endsWith('.jsonl') && f.match(/^\d{4}-\d{2}\.jsonl$/));
     
-    if (!fs.existsSync(filePath)) {
-      return [];
+    const entries = [];
+    
+    for (const file of files) {
+      const filePath = path.join(this.worklogsDir, file);
+      const content = fs.readFileSync(filePath, 'utf8');
+      const lines = content.trim().split('\n').filter(line => line.length > 0);
+      
+      for (const line of lines) {
+        const entry = JSON.parse(line);
+        if (entry.issue === issueKey) {
+          entries.push(entry);
+        }
+      }
     }
     
-    const content = fs.readFileSync(filePath, 'utf8');
-    const lines = content.trim().split('\n').filter(line => line.length > 0);
+    // Sort by started time
+    entries.sort((a, b) => new Date(a.started) - new Date(b.started));
     
-    return lines.map(line => JSON.parse(line));
+    return entries;
   }
 
   // Get timesheet for a user (day, week, or month)
   getTimesheet(author, options = {}) {
     const { date, week, month } = options;
     
-    // Read all worklog files
-    const files = fs.readdirSync(this.worklogsDir)
-      .filter(f => f.endsWith('.jsonl'));
+    // Determine which monthly files to read
+    let monthsToRead = [];
     
+    if (month) {
+      monthsToRead = [month];
+    } else if (week) {
+      // Get months for this week (might span two months)
+      const { startMonth, endMonth } = this.getMonthsForWeek(week);
+      monthsToRead = [startMonth];
+      if (endMonth !== startMonth) {
+        monthsToRead.push(endMonth);
+      }
+    } else if (date) {
+      monthsToRead = [date.substring(0, 7)];
+    } else {
+      // Default to current month
+      monthsToRead = [new Date().toISOString().substring(0, 7)];
+    }
+    
+    // Read worklog files for relevant months
     const entries = [];
     
-    for (const file of files) {
-      const issueKey = file.replace('.jsonl', '');
-      const worklogs = this.getWorklogs(issueKey);
+    for (const targetMonth of monthsToRead) {
+      const filePath = path.join(this.worklogsDir, `${targetMonth}.jsonl`);
       
-      for (const log of worklogs) {
-        if (log.author === author) {
-          entries.push({
-            issue: issueKey,
-            ...log
-          });
+      if (!fs.existsSync(filePath)) {
+        continue;
+      }
+      
+      const content = fs.readFileSync(filePath, 'utf8');
+      const lines = content.trim().split('\n').filter(line => line.length > 0);
+      
+      for (const line of lines) {
+        const entry = JSON.parse(line);
+        if (entry.author === author) {
+          entries.push(entry);
         }
       }
     }
@@ -239,6 +273,25 @@ class WorklogManager {
     const yearStart = new Date(d.getFullYear(), 0, 1);
     const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
     return `${d.getFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+  }
+
+  // Get months that a week spans
+  getMonthsForWeek(weekStr) {
+    const [year, week] = weekStr.split('-W').map(Number);
+    
+    // Calculate start date of week
+    const jan4 = new Date(year, 0, 4);
+    const weekStart = new Date(jan4);
+    weekStart.setDate(jan4.getDate() - (jan4.getDay() || 7) + 1 + (week - 1) * 7);
+    
+    // Calculate end date of week
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+    
+    const startMonth = weekStart.toISOString().substring(0, 7);
+    const endMonth = weekEnd.toISOString().substring(0, 7);
+    
+    return { startMonth, endMonth };
   }
 }
 
