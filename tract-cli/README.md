@@ -4,18 +4,39 @@ Command-line tool for bootstrapping Tract projects from Jira.
 
 ## Installation
 
-**From the tract repository:**
+**Quick Install (recommended):**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/johnmcmullan/tract/master/install.sh | bash
+```
+
+This will:
+- Check for Node.js 14+
+- Clone tract to `~/.tract`
+- Install dependencies
+- Create `tract` command globally
+
+**Custom Install Location:**
+
+```bash
+TRACT_INSTALL_DIR=/opt/tract curl -fsSL https://raw.githubusercontent.com/johnmcmullan/tract/master/install.sh | bash
+```
+
+**Manual Installation:**
+
+```bash
+git clone https://github.com/johnmcmullan/tract.git ~/.tract
+cd ~/.tract/tract-cli
+npm install
+ln -s ~/.tract/tract-cli/bin/tract.js /usr/local/bin/tract
+chmod +x ~/.tract/tract-cli/bin/tract.js
+```
+
+**Or from the tract repository (development):**
 ```bash
 cd tract-cli
 npm install
 npm link  # Makes 'tract' command available globally
-```
-
-**Or use directly with npx:**
-```bash
-cd tract-cli
-npm install
-npx tract onboard --help
 ```
 
 ## Commands
