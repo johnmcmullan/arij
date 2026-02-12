@@ -191,8 +191,9 @@ Jira ──> Webhook ──> Sync Server ──> Git Commit ──> Developer pu
 - **Read this if you're an LLM helping a developer**
 
 **For admins (deployment):**
-- [tract-sync/INSTALL.md](tract-sync/INSTALL.md) - Server installation
+- [tract-sync/README.md](tract-sync/README.md) - Sync server overview and installation
 - [tract-sync/UPDATE.md](tract-sync/UPDATE.md) - Updating the server
+- [tract-sync/FIRST-UPDATE.md](tract-sync/FIRST-UPDATE.md) - Bootstrap self-update
 
 ## Philosophy Deep Dive
 
