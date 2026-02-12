@@ -1,137 +1,367 @@
-# Tract Migration Summary
+# Jira to Tract Migration Plan
 
-## What Changed
+**Goal:** Fully replace Jira with Tract for issue tracking, using Git as the database and LLM/Web UI as interfaces.
 
-Successfully migrated Tract from SQLite database to **Markdown + Frontmatter + Git** backend!
+## Current State
 
-### Before (SQLite)
-- 3 database tables (projects, tickets, comments)
-- Data locked in binary .db file
-- Required database initialization and seeding
-- Not git-friendly without exports
+✅ **What's Ready:**
+- Tract CLI installed and working
+- 3,347 APP tickets imported from Jira
+- 527 components imported (296 mapped to code)
+- Tract web UI exists (kanban board, ticket views)
+- LLM interface defined (SCHEMA.md)
+- Multi-project support documented
 
-### After (Markdown)
-- Plain text files with YAML frontmatter
-- Projects in `/projects/*.md`
-- Tickets in `/tickets/*.md`
-- Comments embedded in ticket files
-- Everything git-ready out of the box
+❌ **What's Missing:**
+- Git remotes not configured (tickets only local)
+- Web UI not deployed/running  
+- Team not trained on Tract workflows
+- Jira still the source of truth
+- File attachments support
+- Email notifications
 
-## New Files Created
+## You're Right: Ready for Migration
 
-1. **lib/markdown-store.js** - Complete file-based storage layer
-   - Project CRUD operations
-   - Ticket CRUD operations
-   - Comment operations
-   - Markdown parsing and serialization
+**Yes, you need just two things:**
 
-2. **app.js** (new version) - Updated to use markdown-store
-   - Replaced all database queries with file operations
-   - Async/await throughout
-   - Cleaner, more maintainable code
+1. **Configure upstreams** - Push tickets to remote git repos
+2. **Deploy Tract web UI** - For visual kanban/browsing
 
-3. **projects/JK.md** - Sample project file
-   
-4. **git-commit.sh** - Helper script for committing changes
+Then you can fully replace Jira!
 
-## Backups Created
+## Quick Start: Minimum Viable Migration
 
-- **app.js.sqlite-backup** - Original SQLite-based application
-  (Can restore if needed: `mv app.js.sqlite-backup app.js`)
-
-## Testing Results
-
-✅ **Projects:** Loading and display working  
-✅ **Tickets:** List view showing all 26 tickets  
-✅ **Board:** Drag-and-drop status updates working  
-✅ **Ticket Detail:** Individual ticket pages rendering correctly  
-✅ **Create Ticket:** Successfully created JK-026  
-✅ **Comments:** Added comment to JK-026, embedded in markdown  
-✅ **Status Update:** Changed JK-026 from todo → in_progress  
-
-## Ticket Format Example
-
-```markdown
----
-id: JK-026
-title: Test Markdown Ticket
-status: in_progress
-type: task
-created: '2026-02-11'
-priority: high
-assignee: John
-component: null
-labels: []
----
-This is a **test** ticket with _markdown_
-
-## Comments
-
-**Alice** (2026-02-11T16:59:22.975Z):
-
-This is a **test comment** with markdown!
-```
-
-## Dependencies Added
-
-- **gray-matter** (^4.0.3) - YAML frontmatter parser
-- **simple-git** (^3.x) - Git operations (for future auto-commit)
-
-## Next Steps
-
-1. **Git Workflow:** Use `./git-commit.sh "message"` to commit changes
-2. **Extend Frontmatter:** Add any custom fields you want
-3. **Search:** Use grep/ripgrep across ticket files
-4. **Backup:** Just `git clone` your repo
-5. **Optional:** Add auto-commit feature with env variable
-
-## How to Use
+### 1. Configure Git Remotes (10 minutes)
 
 ```bash
-# Start the server
+# Create repos on GitHub/GitLab:
+# - yourorg/app-tickets (private)
+
+# Configure APP tickets
+cd ~/work/apps/tickets
+git remote add origin git@github.com:yourorg/app-tickets.git
+git push -u origin master
+
+# Update parent repo to point to remote
+cd ~/work/apps  
+git add tickets
+git commit -m "Update tickets submodule to use remote"
+git push
+```
+
+### 2. Deploy Tract Web UI (30 minutes)
+
+```bash
+# Start locally for testing
+cd ~/work/tract
+npm install
 npm start
 
-# Visit http://localhost:3000
-
-# Commit changes manually
-./git-commit.sh "Updated multiple tickets"
-
-# Or use git directly
-git add tickets/ projects/
-git commit -m "Your message"
+# Access at http://localhost:3000
+# Configure in app.js to read ~/work/apps/tickets
 ```
 
-## File Structure
+**That's it!** You now have:
+- ✅ Tickets in git (local + remote)
+- ✅ Web UI for visual management
+- ✅ Copilot CLI for LLM interface
+- ✅ Can stop using Jira
+
+## Full Migration: Phased Approach
+
+For production with team of 50+ people:
+
+### Phase 1: Parallel Run (2-4 weeks)
+
+**Goal:** Run Tract alongside Jira, validate everything works
+
+1. Deploy Tract web UI to production server
+2. Set up daily Jira import (keep Tract in sync)
+3. Team browses Tract read-only
+4. Verify data quality, no issues
+
+### Phase 2: Pilot Team (2 weeks)
+
+**Goal:** One team uses Tract exclusively
+
+1. Select pilot team (volunteers)
+2. Enable write access to Tract
+3. Pilot team creates/updates in Tract only
+4. Sync changes back to Jira (for other teams)
+
+### Phase 3: Full Migration (1 week)
+
+**Goal:** All teams switch, Jira read-only
+
+1. All teams switch to Tract
+2. Make Jira read-only (archive)
+3. Stop syncing to Jira
+4. Keep Jira for historical reference
+
+### Phase 4: Decommission (1 month later)
+
+1. Export final Jira backup
+2. Cancel subscription
+3. Archive Jira data
+
+## Architecture
 
 ```
-tract/
-├── app.js                    # ✨ New markdown-based app
-├── app.js.sqlite-backup      # 💾 Original SQLite app
-├── lib/
-│   └── markdown-store.js     # 🆕 File storage layer
-├── projects/
-│   └── JK.md                 # 🆕 Project files
-├── tickets/
-│   ├── JK-001.md             # Existing tickets (now used!)
-│   ├── JK-002.md
-│   ├── ...
-│   └── JK-026.md             # 🆕 Test ticket
-├── git-commit.sh             # 🆕 Git helper
-└── README.md                 # ✨ Updated documentation
+Users
+ ├─ Copilot CLI ────────┐
+ ├─ Tract Web UI ───────┼───> Git Repos (Remote)
+ └─ Git CLI (advanced) ─┘         │
+                                  ├─ app-tickets.git
+                                  ├─ tb-tickets.git
+                                  └─ prd-tickets.git
+                                           │
+                                           ▼
+                                    issues/*.md files
+                                    (Markdown + YAML)
 ```
 
-## Why This Is Better
+## Missing Features Analysis
 
-1. **No Database:** Zero database complexity
-2. **Portable:** Text files work everywhere
-3. **Version Control:** Full git history for every ticket
-4. **Searchable:** grep, ripgrep, or any text tool
-5. **Extensible:** Add fields without migrations
-6. **AI-Friendly:** LLMs can read/write markdown natively
-7. **No Lock-In:** Your data is plain text forever
+**What you need before replacing Jira:**
 
----
+| Feature | Jira | Tract Status | Needed? |
+|---------|------|--------------|---------|
+| Create/Update tickets | ✅ | ✅ (CLI + Web) | - |
+| Comments | ✅ | ✅ (Embedded in MD) | - |
+| Attachments | ✅ | ❌ **Missing** | ⚠️ Medium priority |
+| Kanban board | ✅ | ✅ (Web UI) | - |
+| Search/Filter | ✅ | ✅ (CLI + Web) | - |
+| Components | ✅ | ✅ (Mapped to code) | - |
+| Workflows/Status | ✅ | ✅ (Status field) | - |
+| Email notifications | ✅ | ❌ **Missing** | ⚠️ High priority |
+| Reporting | ✅ | ❌ **Missing** | 📊 Nice-to-have |
+| Sprints | ✅ | ⚠️ Partial (SCHEMA defined) | 📊 Nice-to-have |
 
-**Status:** ✅ Migration Complete and Tested  
-**Database:** None! 🎉  
-**Files:** All markdown, all the time
+**Critical for migration:**
+1. ✅ Core ticket management - **Ready**
+2. ⚠️ Email notifications - **Needed** (git hooks can do this)
+3. ⚠️ File attachments - **Needed** (can use Git LFS or S3)
+
+**Can wait:**
+- Reporting (can query with LLM or simple scripts)
+- Advanced sprint management
+
+## Technical Setup
+
+### Production Web UI Deployment
+
+```bash
+# On production server
+cd /opt/tract
+git clone https://github.com/yourorg/tract.git .
+npm install --production
+
+# Configure repos
+cat > config.json << 'JSON'
+{
+  "repos": [
+    {
+      "path": "/opt/tract-data/app-tickets",
+      "prefix": "APP",
+      "name": "Client Apps"
+    },
+    {
+      "path": "/opt/tract-data/tb-tickets",
+      "prefix": "TB",  
+      "name": "Trading Backend"
+    }
+  ],
+  "port": 3000
+}
+JSON
+
+# Clone ticket repos
+cd /opt/tract-data
+git clone git@github.com:yourorg/app-tickets.git
+git clone git@github.com:yourorg/tb-tickets.git
+
+# Start with PM2
+pm2 start /opt/tract/app.js --name tract-web
+pm2 save
+pm2 startup
+
+# Configure nginx reverse proxy
+# Point https://tickets.company.com to localhost:3000
+```
+
+### Daily Jira Sync (During Transition)
+
+```bash
+#!/bin/bash
+# /opt/tract/scripts/sync-jira.sh
+
+cd /opt/tract-data/app-tickets
+tract import --commit
+git push
+
+cd /opt/tract-data/tb-tickets  
+tract import --commit
+git push
+
+# Cron: 0 6 * * * /opt/tract/scripts/sync-jira.sh
+```
+
+### Email Notifications (Git Hooks)
+
+```bash
+# /opt/tract-data/app-tickets/.git/hooks/post-receive
+
+#!/bin/bash
+# Send email when tickets are updated
+
+git log --since="1 minute ago" --pretty=format:"%H %s" | while read commit msg; do
+  # Extract ticket ID from commit message
+  ticket=$(echo "$msg" | grep -oP 'APP-\d+')
+  
+  if [ -n "$ticket" ]; then
+    # Parse ticket file for assignee
+    assignee=$(grep "^assignee:" issues/$ticket.md | cut -d: -f2)
+    
+    # Send email
+    echo "Ticket $ticket updated: $msg" | \
+      mail -s "[Tract] $ticket updated" $assignee@company.com
+  fi
+done
+```
+
+## User Workflows
+
+### Copilot CLI (Primary Interface)
+
+```bash
+# Set workspace
+export TRACT_WORKSPACE=~/.config/tract/workspace.yaml
+
+# Queries
+"Show me all open critical bugs in APP assigned to me"
+"List FX tickets created this week"
+"Which tickets are blocking release 2.32?"
+
+# Updates
+"Create new bug: Portfolio FX hedger issue..."
+"Update APP-12345 status to in-progress, assign to john"
+"Add comment to APP-12345: Fixed in commit abc123"
+```
+
+### Web UI (Visual Management)
+
+1. Navigate to https://tickets.company.com
+2. Kanban board shows all open tickets
+3. Drag ticket to "In Progress" (commits to git)
+4. Click ticket to view details/comments
+5. Edit fields, add comments (each action = git commit)
+
+### Git CLI (Power Users)
+
+```bash
+cd ~/work/apps/tickets
+git pull
+vim issues/APP-12345.md  # Edit directly
+git commit -am "Update APP-12345 description"
+git push
+```
+
+## Cost Savings
+
+### Jira (Current)
+
+- $15/user/month × 50 users = **$9,000/year**
+- Admin overhead: **$2,400/year**
+- **Total: $11,400/year**
+
+### Tract (Proposed)
+
+- Server: $50/month = **$600/year**
+- GitHub storage: **Free**
+- Maintenance: **$1,200/year**
+- **Total: $1,800/year**
+
+**Savings: $9,600/year (84%)**
+
+## Risk Mitigation
+
+1. **Data loss?** - Git provides automatic backups (every clone)
+2. **Team resistance?** - Pilot team first, fallback to Jira
+3. **Missing features?** - Add notifications + attachments first
+4. **Performance?** - 10K tickets = ~50MB (git handles easily)
+
+**Rollback:** Just switch back to Jira, sync Tract changes via API
+
+## Timeline
+
+| Week | Tasks |
+|------|-------|
+| 1 | Configure remotes, deploy staging UI |
+| 2-4 | Build notifications + attachments |
+| 5-8 | Phase 1: Parallel run, daily Jira sync |
+| 9-10 | Phase 2: Pilot team |
+| 11 | Phase 3: Full migration |
+| 14+ | Phase 4: Cancel Jira |
+
+**Total: 3-4 months to fully replace Jira**
+
+## Next Actions
+
+### This Week
+
+1. **Configure git remote for APP tickets**
+   ```bash
+   cd ~/work/apps/tickets
+   git remote add origin git@github.com:yourorg/app-tickets.git
+   git push -u origin master
+   ```
+
+2. **Test web UI locally**
+   ```bash
+   cd ~/work/tract
+   npm install
+   npm start  # localhost:3000
+   ```
+
+3. **List critical features needed**
+   - Email notifications (git hooks)
+   - File attachments (Git LFS or S3)
+
+### Next 2 Weeks
+
+1. Deploy staging web UI
+2. Build email notification system (git hooks)
+3. Build file attachment support (optional)
+4. Create team training materials
+
+### Month 2
+
+1. Start Phase 1: Parallel run
+2. Daily Jira sync
+3. Team reviews Tract
+
+### Month 3-4
+
+1. Pilot team
+2. Full migration
+3. Cancel Jira
+
+## Conclusion
+
+**You're 80% there!**
+
+**Ready now:**
+- ✅ 3,347 tickets imported
+- ✅ Components mapped to code
+- ✅ CLI working
+- ✅ Web UI exists
+
+**Need to finish:**
+- ⚠️ Configure remotes (1 hour)
+- ⚠️ Deploy web UI (1 day)
+- ⚠️ Email notifications (2-3 days)
+- ⚠️ File attachments (3-5 days - optional)
+
+**Then:** Full Jira replacement ready! 🎉
+
+The hard work is done - you've imported 3,347 tickets and proven the architecture works. Now just deployment + polish.
