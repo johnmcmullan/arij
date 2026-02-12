@@ -26,12 +26,56 @@ Tract Repo (Git) ←→ Sync Service ←→ Jira
 
 ## Installation
 
+### Server Installation (One-time Setup)
+
+**For setting up the sync service on your server:**
+
+```bash
+# Download the installer
+wget https://raw.githubusercontent.com/johnmcmullan/tract/master/tract-sync/install-service.sh
+
+# Review the script (important!)
+less install-service.sh
+
+# Run the installer (creates user, installs service)
+chmod +x install-service.sh
+sudo ./install-service.sh APP
+
+# The script will:
+# - Create tract user (UID 751)
+# - Install tract CLI
+# - Run tract onboard to fetch from Jira
+# - Set up bare git repository
+# - Install systemd service
+# - Start bidirectional sync
+```
+
+**For multiple projects:**
+```bash
+sudo ./install-service.sh APP
+sudo ./install-service.sh TB
+sudo ./install-service.sh PRD
+```
+
+### Development Installation (Manual Setup)
+
+**If you want to run the sync service manually for testing:**
+
 ```bash
 cd ~/work/tract/tract-sync
 npm install
 ```
 
 ## Configuration
+
+**After running install-service.sh**, configuration is stored in:
+```
+/opt/tract/config/app.env      # For APP project
+/opt/tract/config/tb.env       # For TB project
+/opt/tract/config/prd.env      # For PRD project
+```
+
+**Manual configuration** (if not using install script):
 
 Set environment variables:
 
@@ -62,22 +106,25 @@ EOF
 
 ## Running
 
-**Development:**
+**After install-service.sh** (recommended):
+```bash
+# Service is already running!
+systemctl status tract-sync@app.service
+journalctl -u tract-sync@app.service -f
+
+# Manage services
+sudo systemctl restart tract-sync@app.service
+sudo systemctl stop tract-sync@app.service
+```
+
+**Manual development mode:**
 ```bash
 npm run dev
 ```
 
-**Production:**
+**Manual production mode:**
 ```bash
 npm start
-```
-
-**As systemd service:**
-```bash
-sudo cp systemd/tract-sync.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable tract-sync
-sudo systemctl start tract-sync
 ```
 
 ## Git Hook Setup
