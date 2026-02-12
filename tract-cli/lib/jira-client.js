@@ -44,6 +44,44 @@ class JiraClient {
     return response.data.filter(field => field.custom);
   }
 
+  async searchIssues(jql, maxResults = null) {
+    const params = {
+      jql,
+      fields: '*all',
+      expand: 'changelog,renderedFields'
+    };
+
+    if (maxResults) {
+      params.maxResults = maxResults;
+    }
+
+    const allIssues = [];
+    let startAt = 0;
+    const batchSize = maxResults || 100;
+
+    while (true) {
+      params.startAt = startAt;
+      params.maxResults = batchSize;
+
+      const response = await this.client.get('/rest/api/2/search', { params });
+      const { issues, total } = response.data;
+      
+      allIssues.push(...issues);
+      
+      if (maxResults && allIssues.length >= maxResults) {
+        return allIssues.slice(0, maxResults);
+      }
+
+      if (allIssues.length >= total) {
+        break;
+      }
+
+      startAt += batchSize;
+    }
+
+    return allIssues;
+  }
+
   async getProjectMetadata(projectKey) {
     console.log(`  Fetching project details...`);
     const project = await this.getProject(projectKey);

@@ -6,6 +6,7 @@ const chalk = require('chalk');
 const ora = require('ora');
 const JiraClient = require('../lib/jira-client');
 const ConfigGenerator = require('../lib/config-generator');
+const TicketImporter = require('../lib/ticket-importer');
 
 async function onboard(options) {
   console.log(chalk.bold.cyan('\n🚀 Tract Onboarding\n'));
@@ -17,6 +18,8 @@ async function onboard(options) {
   const submodulePath = options.submodule;
   const remoteUrl = options.remote;
   const isSubmoduleMode = !!submodulePath;
+  const importTickets = options.importTickets;
+  const ticketLimit = options.limit ? parseInt(options.limit) : null;
 
   // In submodule mode, we create the ticket repo in a temp location first
   let ticketRepoDir = outputDir;
@@ -254,6 +257,33 @@ async function onboard(options) {
       }
     }
 
+    // Import tickets if requested
+    if (importTickets) {
+      const finalDir = isSubmoduleMode 
+        ? path.join(parentRepoDir, submodulePath) 
+        : outputDir;
+      
+      const importer = new TicketImporter(jiraClient, finalDir);
+      const importResult = await importer.importTickets({
+        status: 'open',
+        limit: ticketLimit
+      });
+      
+      // Commit imported tickets
+      if (importResult.total > 0) {
+        try {
+          execSync('git add tickets/', { cwd: finalDir, stdio: 'pipe' });
+          execSync(`git commit -m "Import ${importResult.created} tickets from Jira"`, { 
+            cwd: finalDir, 
+            stdio: 'pipe' 
+          });
+          console.log(chalk.green(`✓ Committed ${importResult.total} tickets to git\n`));
+        } catch (err) {
+          console.log(chalk.yellow(`⚠ Could not auto-commit tickets (commit manually)\n`));
+        }
+      }
+    }
+
     // Success message
     console.log(chalk.bold.green('\n✅ Onboarding complete!\n'));
     console.log(chalk.bold('Next Steps:\n'));
@@ -270,17 +300,19 @@ async function onboard(options) {
     console.log(chalk.gray('   cat .tract/config.yaml\n'));
     
     if (metadata.components.length > 0) {
-      console.log(chalk.gray('   # Add component paths:'));
-      console.log(chalk.gray('   vim .tract/components.yaml\n'));
+      console.log(chalk.gray('   # Map component paths:'));
+      console.log(chalk.gray(`   tract map-components --tract ${workingDir} --code <code-dir>\n`));
+    }
+    
+    if (!importTickets) {
+      console.log(chalk.gray('   # Import existing Jira issues:'));
+      console.log(chalk.gray(`   tract import --tract ${workingDir}\n`));
     }
     
     if (isSubmoduleMode) {
-      console.log(chalk.gray('   # Tickets are in a submodule - LLM will handle git operations'));
+      console.log(chalk.gray('   # Tickets are in a submodule - LLM handles git operations'));
       console.log(chalk.gray(`   # Client exports (git archive) will exclude ${submodulePath}/\n`));
     }
-    
-    console.log(chalk.gray('   # Import existing Jira issues (future):'));
-    console.log(chalk.gray(`   tract import --project ${projectKey}\n`));
     
     console.log(chalk.gray('   # Use Copilot CLI with SCHEMA.md as your ticket interface'));
     console.log(chalk.gray(`   # LLM replaces the web UI, Git replaces the database\n`));
