@@ -267,11 +267,11 @@ async function onboard(options) {
     }
     
     console.log(chalk.gray('   # Review and edit configuration:'));
-    console.log(chalk.gray('   cat .arij/config.yaml\n'));
+    console.log(chalk.gray('   cat .tract/config.yaml\n'));
     
     if (metadata.components.length > 0) {
       console.log(chalk.gray('   # Add component paths:'));
-      console.log(chalk.gray('   vim .arij/components.yaml\n'));
+      console.log(chalk.gray('   vim .tract/components.yaml\n'));
     }
     
     if (isSubmoduleMode) {
