@@ -197,6 +197,65 @@ app.get('/timesheet/:author', async (req, res) => {
   }
 });
 
+// Self-update endpoint  
+app.post('/update', async (req, res) => {
+  try {
+    const { execSync } = require('child_process');
+    const fs = require('fs');
+    
+    console.log('\n🔄 Self-update triggered...');
+    
+    // Get project name from config
+    const projectName = process.env.PROJECT_NAME || 'app';
+    const gitRepoPath = '/opt/tract/tract';
+    const workingPath = '/opt/tract/tract-sync';
+    const serviceName = `tract-sync@${projectName}.service`;
+    
+    // Return success immediately
+    res.json({ 
+      status: 'updating',
+      message: 'Update started, check logs in 10 seconds',
+      project: projectName
+    });
+    
+    // Run update in background (after response sent)
+    setTimeout(async () => {
+      try {
+        console.log('📥 Pulling latest code from GitHub...');
+        execSync('git fetch origin && git reset --hard origin/master', {
+          cwd: gitRepoPath,
+          stdio: 'inherit'
+        });
+        
+        console.log('📦 Copying updated files...');
+        execSync(`cp -v ${gitRepoPath}/tract-sync/lib/*.js ${workingPath}/lib/`, { stdio: 'inherit' });
+        execSync(`cp -v ${gitRepoPath}/tract-sync/server.js ${workingPath}/`, { stdio: 'inherit' });
+        
+        // Check for package.json changes
+        const oldPkg = fs.existsSync(`${workingPath}/package.json`) ? 
+          fs.readFileSync(`${workingPath}/package.json`, 'utf8') : '';
+        const newPkg = fs.readFileSync(`${gitRepoPath}/tract-sync/package.json`, 'utf8');
+        
+        if (oldPkg !== newPkg) {
+          console.log('📦 Package dependencies changed, installing...');
+          execSync(`cp ${gitRepoPath}/tract-sync/package.json ${workingPath}/`, { stdio: 'inherit' });
+          execSync('npm install --production', { cwd: workingPath, stdio: 'inherit' });
+        }
+        
+        console.log('✅ Update complete! Exiting to trigger systemd restart...');
+        process.exit(0); // Systemd will restart the service automatically
+        
+      } catch (error) {
+        console.error('❌ Update failed:', error.message);
+      }
+    }, 1000);
+    
+  } catch (error) {
+    console.error('❌ Update error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Start server
 app.listen(config.port, () => {
   console.log(`
@@ -217,6 +276,7 @@ Endpoints:
   POST /worklog/:issueKey   - Add worklog entry
   GET  /worklog/:issueKey   - Get worklogs for issue
   GET  /timesheet/:author   - Get timesheet for user
+  POST /update              - Self-update from GitHub (restart service)
 
 Ready to sync! 🚀
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

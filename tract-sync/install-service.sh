@@ -287,6 +287,7 @@ Type=simple
 User=tract
 WorkingDirectory=/opt/tract/tract-sync
 EnvironmentFile=/opt/tract/config/%i.env
+Environment="PROJECT_NAME=%i"
 ExecStart=/usr/bin/node /opt/tract/tract-sync/server.js
 Restart=always
 RestartSec=10
