@@ -95,6 +95,59 @@ class JiraToGitSync {
         frontmatter.resolution = jiraIssue.fields.resolution.name;
       }
       
+      // Issue links
+      if (jiraIssue.fields.issuelinks?.length > 0) {
+        frontmatter.links = jiraIssue.fields.issuelinks.map(link => {
+          const isOutward = !!link.outwardIssue;
+          const linkedIssue = isOutward ? link.outwardIssue : link.inwardIssue;
+          const linkType = isOutward ? link.type.outward : link.type.inward;
+          
+          // Map Jira link types to Tract conventions
+          const relMap = {
+            'blocks': 'blocks',
+            'is blocked by': 'blocked_by',
+            'duplicates': 'duplicates',
+            'is duplicated by': 'duplicated_by',
+            'relates to': 'relates',
+            'depends on': 'depends_on',
+            'is depended on by': 'required_by',
+            'causes': 'causes',
+            'is caused by': 'caused_by',
+            'clones': 'clones',
+            'is cloned by': 'cloned_by'
+          };
+          
+          const rel = relMap[linkType.toLowerCase()] || 'relates';
+          
+          return {
+            rel: rel,
+            ref: linkedIssue.key
+          };
+        });
+      }
+      
+      // Watchers (count only, list requires separate API call)
+      if (jiraIssue.fields.watches?.watchCount > 0) {
+        // Store as comment for now since we don't have the full list
+        frontmatter.watcher_count = jiraIssue.fields.watches.watchCount;
+      }
+      
+      // Time tracking
+      if (jiraIssue.fields.worklog?.worklogs?.length > 0) {
+        const totalSeconds = jiraIssue.fields.worklog.worklogs.reduce((sum, log) => 
+          sum + (log.timeSpentSeconds || 0), 0
+        );
+        frontmatter.logged = this.formatSeconds(totalSeconds);
+      }
+      
+      if (jiraIssue.fields.timeestimate) {
+        frontmatter.estimate = this.formatSeconds(jiraIssue.fields.timeestimate);
+      }
+      
+      if (jiraIssue.fields.timeoriginalestimate) {
+        frontmatter.remaining = this.formatSeconds(jiraIssue.fields.timeoriginalestimate);
+      }
+      
       // Build description
       const description = this.convertJiraMarkdown(jiraIssue.fields.description || '');
       
@@ -133,6 +186,27 @@ ${description}${commentsSection}`;
       
     } catch (error) {
       console.error(`❌ Error syncing ${issueKey}:`, error.message);
+    }
+  }
+
+  // Format seconds to human-readable time (e.g., "2h", "30m", "1d 4h")
+  formatSeconds(seconds) {
+    if (!seconds || seconds === 0) return null;
+    
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    
+    if (hours >= 8) {
+      const days = Math.floor(hours / 8);
+      const remainingHours = hours % 8;
+      if (remainingHours > 0) {
+        return `${days}d ${remainingHours}h`;
+      }
+      return `${days}d`;
+    } else if (hours > 0) {
+      return `${hours}h`;
+    } else {
+      return `${minutes}m`;
     }
   }
 

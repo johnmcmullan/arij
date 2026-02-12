@@ -104,6 +104,26 @@ class GitToJiraSync {
       changes.affected_version = newFM.affected_version;
     }
     
+    // Check for link changes
+    const oldLinks = JSON.stringify(oldFM.links || []);
+    const newLinks = JSON.stringify(newFM.links || []);
+    if (oldLinks !== newLinks) {
+      changes.links = newFM.links;
+    }
+    
+    // Check for time tracking changes
+    if (oldFM.estimate !== newFM.estimate) {
+      changes.estimate = newFM.estimate;
+    }
+    
+    if (oldFM.logged !== newFM.logged) {
+      changes.logged = newFM.logged;
+    }
+    
+    if (oldFM.remaining !== newFM.remaining) {
+      changes.remaining = newFM.remaining;
+    }
+    
     if (oldData.description !== newData.description) {
       changes.description = newData.description;
     }
@@ -166,6 +186,17 @@ class GitToJiraSync {
       updates.fields.description = changes.description;
     }
     
+    // Time tracking fields
+    if (changes.estimate !== undefined) {
+      const seconds = this.parseTimeToSeconds(changes.estimate);
+      updates.fields.timeestimate = seconds;
+    }
+    
+    if (changes.remaining !== undefined) {
+      const seconds = this.parseTimeToSeconds(changes.remaining);
+      updates.fields.timeoriginalestimate = seconds;
+    }
+    
     // Update fields if any changed
     if (Object.keys(updates.fields).length > 0) {
       try {
@@ -176,12 +207,113 @@ class GitToJiraSync {
       }
     }
     
+    // Handle issue link changes
+    if (changes.links) {
+      await this.updateIssueLinks(issueKey, changes.links);
+    }
+    
+    // Handle worklog changes (logged time)
+    if (changes.logged !== undefined) {
+      // Note: We can't easily determine what changed in worklog, so we just add a new entry
+      // Jira worklogs are immutable - can't edit existing entries easily
+      // This is more of a "log additional time" operation
+      console.log(`⏱️  Worklog change detected for ${issueKey}, but sync not yet implemented (worklogs are append-only)`);
+    }
+    
     // Add comments
     if (changes.newComments && changes.newComments.length > 0) {
       for (const comment of changes.newComments) {
         await this.addJiraComment(issueKey, comment.body, comment.author);
       }
     }
+  }
+
+  // Update issue links (add/remove)
+  async updateIssueLinks(issueKey, newLinks) {
+    try {
+      // Get existing links from Jira
+      const issueResp = await this.jiraClient.get(`/rest/api/2/issue/${issueKey}?fields=issuelinks`);
+      const existingLinks = issueResp.data.fields.issuelinks || [];
+      
+      // Map Tract relations back to Jira link types
+      const relMap = {
+        'blocks': 'Blocks',
+        'blocked_by': 'Blocks', // inverted
+        'duplicates': 'Duplicate',
+        'duplicated_by': 'Duplicate', // inverted
+        'relates': 'Relates',
+        'depends_on': 'Depends',
+        'required_by': 'Depends', // inverted
+        'causes': 'Causes',
+        'caused_by': 'Causes', // inverted
+        'clones': 'Cloners',
+        'cloned_by': 'Cloners' // inverted
+      };
+      
+      // Determine which links to add and remove
+      const existingLinkSet = new Set(existingLinks.map(l => {
+        const isOutward = !!l.outwardIssue;
+        const linkedKey = isOutward ? l.outwardIssue.key : l.inwardIssue.key;
+        const linkType = l.type.name;
+        return `${linkType}:${linkedKey}`;
+      }));
+      
+      const newLinkSet = new Set((newLinks || []).map(l => 
+        `${relMap[l.rel] || 'Relates'}:${l.ref}`
+      ));
+      
+      // Remove deleted links
+      for (const link of existingLinks) {
+        const isOutward = !!link.outwardIssue;
+        const linkedKey = isOutward ? link.outwardIssue.key : link.inwardIssue.key;
+        const linkType = link.type.name;
+        const key = `${linkType}:${linkedKey}`;
+        
+        if (!newLinkSet.has(key)) {
+          await this.jiraClient.delete(`/rest/api/2/issueLink/${link.id}`);
+          console.log(`🔗 Removed link ${issueKey} -> ${linkedKey} (${linkType})`);
+        }
+      }
+      
+      // Add new links
+      for (const link of (newLinks || [])) {
+        const linkType = relMap[link.rel] || 'Relates';
+        const key = `${linkType}:${link.ref}`;
+        
+        if (!existingLinkSet.has(key)) {
+          const isInverted = ['blocked_by', 'duplicated_by', 'required_by', 'caused_by', 'cloned_by'].includes(link.rel);
+          
+          await this.jiraClient.post(`/rest/api/2/issueLink`, {
+            type: { name: linkType },
+            inwardIssue: { key: isInverted ? issueKey : link.ref },
+            outwardIssue: { key: isInverted ? link.ref : issueKey }
+          });
+          console.log(`🔗 Added link ${issueKey} -> ${link.ref} (${link.rel})`);
+        }
+      }
+    } catch (error) {
+      console.error(`❌ Failed to update links for ${issueKey}:`, error.response?.data || error.message);
+    }
+  }
+
+  // Parse time string to seconds (e.g., "2h", "30m", "1.5d")
+  parseTimeToSeconds(timeStr) {
+    if (!timeStr) return null;
+    
+    const match = timeStr.match(/^(\d+(?:\.\d+)?)\s*([hdmw]?)$/i);
+    if (!match) return null;
+    
+    const value = parseFloat(match[1]);
+    const unit = match[2].toLowerCase() || 'h';
+    
+    const multipliers = {
+      'm': 60,
+      'h': 3600,
+      'd': 28800, // 8 hour workday
+      'w': 144000 // 5 day work week
+    };
+    
+    return Math.round(value * (multipliers[unit] || 3600));
   }
 
   // Transition issue to new status

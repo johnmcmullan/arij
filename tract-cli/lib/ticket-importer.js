@@ -145,6 +145,69 @@ class TicketImporter {
       frontmatter.parent = fields.parent.key;
     }
 
+    // Issue links
+    if (fields.issuelinks && fields.issuelinks.length > 0) {
+      frontmatter.links = fields.issuelinks.map(link => {
+        // Jira stores links as either outward or inward
+        const isOutward = !!link.outwardIssue;
+        const linkedIssue = isOutward ? link.outwardIssue : link.inwardIssue;
+        const linkType = isOutward ? link.type.outward : link.type.inward;
+        
+        // Map Jira link types to Tract conventions
+        const relMap = {
+          'blocks': 'blocks',
+          'is blocked by': 'blocked_by',
+          'duplicates': 'duplicates',
+          'is duplicated by': 'duplicated_by',
+          'relates to': 'relates',
+          'depends on': 'depends_on',
+          'is depended on by': 'required_by',
+          'causes': 'causes',
+          'is caused by': 'caused_by',
+          'clones': 'clones',
+          'is cloned by': 'cloned_by'
+        };
+        
+        const rel = relMap[linkType.toLowerCase()] || 'relates';
+        
+        return {
+          rel: rel,
+          ref: linkedIssue.key
+        };
+      });
+    }
+
+    // Watchers
+    if (fields.watches && fields.watches.watchCount > 0) {
+      // Note: Jira API doesn't return watcher list by default, would need separate call
+      // For now, just store the count as a comment
+    }
+
+    // Worklog (time tracking)
+    if (fields.worklog && fields.worklog.worklogs && fields.worklog.worklogs.length > 0) {
+      const totalSeconds = fields.worklog.worklogs.reduce((sum, log) => sum + (log.timeSpentSeconds || 0), 0);
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      
+      if (hours > 0 || minutes > 0) {
+        frontmatter.logged = hours > 0 ? `${hours}h` : `${minutes}m`;
+      }
+    }
+
+    // Time estimate
+    if (fields.timeestimate) {
+      const hours = Math.floor(fields.timeestimate / 3600);
+      const minutes = Math.floor((fields.timeestimate % 3600) / 60);
+      frontmatter.estimate = hours > 0 ? `${hours}h` : `${minutes}m`;
+    }
+
+    // Remaining estimate
+    if (fields.timeoriginalestimate) {
+      const hours = Math.floor(fields.timeoriginalestimate / 3600);
+      const minutes = Math.floor((fields.timeoriginalestimate % 3600) / 60);
+      frontmatter.remaining = hours > 0 ? `${hours}h` : `${minutes}m`;
+    }
+
     // Description
     let description = '';
     if (fields.description) {
