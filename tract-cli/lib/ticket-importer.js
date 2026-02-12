@@ -146,7 +146,7 @@ class TicketImporter {
     if (fields.comment && fields.comment.comments && fields.comment.comments.length > 0) {
       commentsSection = '\n## Comments\n\n';
       for (const comment of fields.comment.comments) {
-        const author = comment.author?.displayName || comment.author?.name || 'Unknown';
+        const author = comment.author?.name || comment.author?.displayName || 'Unknown';
         const created = new Date(comment.created).toISOString();
         const body = this.convertJiraMarkdown(comment.body);
         commentsSection += `### ${author} - ${created}\n\n${body}\n\n`;
