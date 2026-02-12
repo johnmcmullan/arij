@@ -133,7 +133,7 @@ Users
 | Search/Filter | ✅ | ✅ (CLI + Web) | - |
 | Components | ✅ | ✅ (Mapped to code) | - |
 | Workflows/Status | ✅ | ✅ (Status field) | - |
-| Email notifications | ✅ | ❌ **Missing** | ⚠️ High priority |
+| Email notifications | ✅ | ✅ **Slack instead** | - |
 | Reporting | ✅ | ❌ **Missing** | 📊 Nice-to-have |
 | Sprints | ✅ | ⚠️ Partial (SCHEMA defined) | 📊 Nice-to-have |
 
@@ -146,11 +146,12 @@ Users
 **Critical for migration:**
 1. ✅ Core ticket management - **Ready**
 2. ✅ File access - **Already works** (links to /tb/shared)
-3. ⚠️ Email notifications - **Needed** (git hooks can do this)
+3. ✅ Slack notifications - **Easy** (5 minutes, git hooks)
 
 **Can wait:**
 - Reporting (can query with LLM or simple scripts)
 - Advanced sprint management
+- Email notifications (Slack is sufficient)
 
 ## Technical Setup
 
@@ -336,10 +337,10 @@ git push
 ### Next 2 Weeks
 
 1. Deploy staging web UI
-2. Build email notification system (git hooks)
+2. Set up Slack webhooks (5 minutes)
 3. Create team training materials
 
-**Note:** File attachments not needed - tickets already contain links to shared NFS storage at `/tb/shared`
+**Note:** File attachments not needed - tickets already contain links to shared NFS storage at `/tb/shared`. Using Slack instead of email (simpler).
 
 ### Month 2
 
@@ -367,8 +368,8 @@ git push
 **Need to finish:**
 - ⚠️ Configure remotes (1 hour)
 - ⚠️ Deploy web UI (1 day)
-- ⚠️ Email notifications (2-3 days)
+- ⚠️ Slack notifications (5 minutes)
 
 **Then:** Full Jira replacement ready! 🎉
 
-The hard work is done - you've imported 3,347 tickets and proven the architecture works. File attachments aren't needed since you already use shared NFS storage at /tb/shared. Just deploy + add notifications!
+The hard work is done - you've imported 3,347 tickets and proven the architecture works. File attachments use existing /tb/shared NFS. Slack notifications are trivial. Just deploy!
