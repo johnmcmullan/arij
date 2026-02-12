@@ -5,6 +5,7 @@ const bodyParser = require('body-parser');
 const GitToJiraSync = require('./lib/git-to-jira-sync');
 const JiraToGitSync = require('./lib/jira-to-git-sync');
 const WorklogManager = require('./lib/worklog-manager');
+const TicketCreator = require('./lib/ticket-creator');
 
 const app = express();
 app.use(bodyParser.json());
@@ -55,6 +56,28 @@ const worklogManager = new WorklogManager({
   syncUser: config.syncUser,
   syncEmail: config.syncEmail
 });
+
+const ticketCreator = new TicketCreator({
+  repoPath: config.repoPath,
+  jiraClient: jiraClient,
+  syncUser: config.syncUser,
+  syncEmail: config.syncEmail
+});
+
+// Process offline queue on startup
+setTimeout(async () => {
+  try {
+    const result = await ticketCreator.processQueue();
+    if (result.processed > 0) {
+      console.log(`✅ Synced ${result.processed} offline ticket(s) to Jira`);
+    }
+    if (result.failed > 0) {
+      console.log(`⚠️  ${result.failed} ticket(s) failed to sync`);
+    }
+  } catch (error) {
+    console.error('Queue processing error:', error.message);
+  }
+}, 5000); // Wait 5s after startup
 
 // Health check
 app.get('/health', (req, res) => {
@@ -197,6 +220,43 @@ app.get('/timesheet/:author', async (req, res) => {
   }
 });
 
+// Create ticket endpoint
+app.post('/create/:project', async (req, res) => {
+  try {
+    const { project } = req.params;
+    const { title, type, priority, assignee, description, components, labels } = req.body;
+    
+    if (!title) {
+      return res.status(400).json({ error: 'title required' });
+    }
+    
+    const result = await ticketCreator.createTicket(project.toUpperCase(), {
+      title,
+      type,
+      priority,
+      assignee,
+      description,
+      components,
+      labels
+    });
+    
+    res.json(result);
+  } catch (error) {
+    console.error('❌ Create error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Process offline queue manually
+app.post('/sync/queue', async (req, res) => {
+  try {
+    const result = await ticketCreator.processQueue();
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Self-update endpoint  
 app.post('/update', async (req, res) => {
   try {
@@ -276,6 +336,8 @@ Endpoints:
   POST /worklog/:issueKey   - Add worklog entry
   GET  /worklog/:issueKey   - Get worklogs for issue
   GET  /timesheet/:author   - Get timesheet for user
+  POST /create/:project     - Create new ticket (offline capable)
+  POST /sync/queue          - Process offline ticket queue
   POST /update              - Self-update from GitHub (restart service)
 
 Ready to sync! 🚀

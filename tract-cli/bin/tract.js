@@ -52,6 +52,20 @@ program
   .action(importCommand);
 
 program
+  .command('create')
+  .description('Create a new ticket')
+  .argument('<project>', 'Project key (e.g., APP, TB)')
+  .requiredOption('--title <title>', 'Ticket title')
+  .option('--type <type>', 'Issue type (bug, task, story, etc.)', 'task')
+  .option('--priority <priority>', 'Priority (trivial, minor, major, critical, blocker)', 'medium')
+  .option('--assignee <username>', 'Assign to user')
+  .option('--description <text>', 'Detailed description')
+  .option('--components <list>', 'Comma-separated component names')
+  .option('--labels <list>', 'Comma-separated labels')
+  .option('--server <url>', 'Sync server URL (or use TRACT_SYNC_SERVER env var)')
+  .action(require('../commands/create'));
+
+program
   .command('log')
   .description('Log time to an issue')
   .argument('<issue>', 'Issue key (e.g., APP-1002)')
