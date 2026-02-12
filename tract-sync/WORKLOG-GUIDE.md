@@ -230,3 +230,106 @@ http://your-tract-server:3100/webhook/jira
 - ✅ `issue_updated`
 
 All worklog events will be automatically synced to the monthly JSONL files.
+
+## Advanced Queries
+
+### Daily Summary per Person
+
+```bash
+# Hours logged by each person today
+cat worklogs/2026-02.jsonl | \
+  jq -r --arg date "$(date +%Y-%m-%d)" \
+  'select(.started | startswith($date)) | "\(.author) \(.seconds)"' | \
+  awk '{hrs[$1] += $2/3600} END {for (p in hrs) printf "%s: %.1fh\n", p, hrs[p]}'
+```
+
+### Weekly Team Summary
+
+```bash
+# Total hours per person this week
+cat worklogs/2026-02.jsonl | \
+  jq -r 'select(.started >= "2026-02-09" and .started < "2026-02-16") | "\(.author) \(.seconds)"' | \
+  awk '{hrs[$1] += $2/3600} END {for (p in hrs) printf "%s: %.1fh\n", p, hrs[p]}' | \
+  sort -t: -k2 -nr
+```
+
+### Project Breakdown
+
+```bash
+# Hours per project with percentages
+cat worklogs/2026-02.jsonl | \
+  jq -r '.issue' | cut -d- -f1 | sort | uniq -c | \
+  awk '{total+=$1; proj[$2]=$1} END {for (p in proj) printf "%s: %d entries (%.1f%%)\n", p, proj[p], 100*proj[p]/total}'
+```
+
+### Under-logging Detection
+
+```bash
+# Find people who logged less than 6h today (might need to log more)
+cat worklogs/2026-02.jsonl | \
+  jq -r --arg date "$(date +%Y-%m-%d)" \
+  'select(.started | startswith($date)) | "\(.author) \(.seconds)"' | \
+  awk '{hrs[$1] += $2/3600} END {for (p in hrs) if (hrs[p] < 6) printf "%s: %.1fh ⚠️\n", p, hrs[p]}'
+```
+
+### Monthly Report
+
+```bash
+# Complete monthly summary: total hours, per person, per project
+echo "=== February 2026 Time Report ==="
+echo ""
+echo "Total hours:"
+cat worklogs/2026-02.jsonl | jq -s 'map(.seconds) | add / 3600'
+echo ""
+echo "By person:"
+cat worklogs/2026-02.jsonl | jq -r '.author' | sort | uniq -c | sort -rn
+echo ""
+echo "By project:"
+cat worklogs/2026-02.jsonl | jq -r '.issue' | cut -d- -f1 | sort | uniq -c | sort -rn
+```
+
+### Export to CSV
+
+```bash
+# Export all February worklogs to CSV
+echo "Date,Author,Issue,Hours,Comment" > february-2026.csv
+cat worklogs/2026-02.jsonl | \
+  jq -r '[.started[0:10], .author, .issue, (.seconds/3600|tostring), .comment] | @csv' \
+  >> february-2026.csv
+```
+
+### Find Specific Work
+
+```bash
+# Find all time logged to a specific issue
+cat worklogs/2026-02.jsonl | jq -r 'select(.issue == "APP-3350") | "\(.started[0:10]) \(.author) \(.seconds/3600)h \(.comment)"'
+
+# Find all sprint planning time (TINT project)
+cat worklogs/2026-02.jsonl | jq -r 'select(.issue | startswith("TINT-")) | "\(.started[0:10]) \(.author) \(.seconds/3600)h \(.issue) \(.comment)"'
+```
+
+## Integration with Other Tools
+
+### Tempo Integration (Future)
+
+The JSONL format is compatible with Tempo's time tracking. A script could sync to Tempo:
+
+```bash
+# Sync to Tempo (example - not yet implemented)
+cat worklogs/2026-02.jsonl | \
+  jq -r '{"author": .author, "issue": .issue, "started": .started, "timeSpentSeconds": .seconds}' | \
+  curl -X POST https://tempo-api/worklogs -d @-
+```
+
+### Jira Time Reports
+
+Since worklogs sync to Jira, managers can use Jira's built-in time tracking reports. The central worklogs provide a backup and enable custom queries.
+
+### Spreadsheet Import
+
+Export to CSV and import to Google Sheets/Excel for analysis:
+
+```bash
+tract timesheet --month 2026-02 --format csv > feb-2026.csv
+# Open in Google Sheets or Excel
+```
