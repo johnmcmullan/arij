@@ -2,6 +2,7 @@
 
 const { Command } = require('commander');
 const onboard = require('../commands/onboard');
+const mapComponents = require('../commands/map-components');
 const packageJson = require('../package.json');
 
 const program = new Command();
@@ -24,5 +25,14 @@ program
   .option('--remote <url>', 'Git remote URL for ticket repo (optional, can be configured later)')
   .option('--no-git', 'Skip git initialization')
   .action(onboard);
+
+program
+  .command('map-components')
+  .description('Map Jira components to code directory paths using LLM')
+  .option('--tract <dir>', 'Tract ticket repository directory (defaults to current)', '.')
+  .option('--code <dir>', 'Code repository root to scan (defaults to parent dir)', '..')
+  .option('--confidence <percent>', 'Confidence threshold for auto-accept (default: 80)', '80')
+  .option('--no-interactive', 'Skip interactive review (auto-accept all)')
+  .action(mapComponents);
 
 program.parse(process.argv);
