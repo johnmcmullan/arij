@@ -69,6 +69,40 @@ class WorklogManager {
     return logEntry;
   }
 
+  // Add a worklog entry from Jira webhook (don't post back to Jira)
+  async addWorklogFromJira(issueKey, jiraWorklog) {
+    const logEntry = {
+      issue: issueKey,
+      author: jiraWorklog.author?.name || jiraWorklog.author?.displayName || 'unknown',
+      started: jiraWorklog.started,
+      seconds: jiraWorklog.timeSpentSeconds,
+      comment: jiraWorklog.comment || '',
+      jiraId: jiraWorklog.id // Track Jira worklog ID to avoid duplicates
+    };
+    
+    // Append to monthly file
+    const month = logEntry.started.substring(0, 7); // YYYY-MM
+    const filePath = path.join(this.worklogsDir, `${month}.jsonl`);
+    
+    // Check if this worklog already exists (avoid duplicates)
+    if (fs.existsSync(filePath)) {
+      const existing = fs.readFileSync(filePath, 'utf8');
+      if (existing.includes(`"jiraId":"${jiraWorklog.id}"`)) {
+        console.log(`  ⏭️  Worklog ${jiraWorklog.id} already exists, skipping`);
+        return logEntry;
+      }
+    }
+    
+    fs.appendFileSync(filePath, JSON.stringify(logEntry) + '\n', 'utf8');
+    
+    console.log(`📝 Added worklog from Jira: ${issueKey} - ${logEntry.author} - ${this.formatSeconds(logEntry.seconds)}`);
+    
+    // Schedule batch commit
+    this.scheduleBatchCommit();
+    
+    return logEntry;
+  }
+
   // Get all worklogs for an issue (scans all monthly files)
   getWorklogs(issueKey) {
     const files = fs.readdirSync(this.worklogsDir)

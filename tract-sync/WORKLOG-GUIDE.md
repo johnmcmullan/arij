@@ -165,3 +165,68 @@ Currently uses git `user.name` for author identification. Future options:
 - API tokens
 - SSH key authentication
 - LDAP/AD integration
+
+## Bidirectional Sync
+
+Worklogs are synced bidirectionally between Tract and Jira:
+
+### Tract → Jira
+
+When you log time via `tract log`:
+1. Entry added to monthly JSONL file (e.g., `worklogs/2026-02.jsonl`)
+2. Posted to Jira worklog API immediately
+3. Changes committed to git (batched every 5 minutes)
+
+### Jira → Tract
+
+When someone logs time directly in Jira:
+1. Jira webhook fires (`worklog_created` or `worklog_updated`)
+2. Sync server receives webhook
+3. Entry added to monthly JSONL file with Jira worklog ID
+4. Changes committed to git (batched)
+5. Duplicate detection prevents re-syncing same worklog
+
+This ensures **all worklogs** appear in the monthly files, regardless of whether they were logged via Tract CLI or Jira UI.
+
+### Why Bidirectional?
+
+**Complete time reporting** - Monthly JSONL files contain all time logged by everyone:
+- Developers using `tract log`
+- Scrum masters logging in Jira
+- Managers logging in Jira
+- Non-developers who don't use Tract
+
+**Single source of truth** - Query the JSONL files for:
+- Team timesheets
+- Monthly time reports
+- Utilization analysis
+- Project time tracking
+
+**Example report query:**
+```bash
+# Total hours logged by everyone in February
+cat worklogs/2026-02.jsonl | jq -s 'map(.seconds) | add / 3600'
+
+# Hours per person
+cat worklogs/2026-02.jsonl | jq -r '.author' | sort | uniq -c
+
+# Hours per project
+cat worklogs/2026-02.jsonl | jq -r '.issue' | cut -d- -f1 | sort | uniq -c
+```
+
+## Jira Webhook Configuration
+
+To enable Jira → Tract worklog sync, configure a webhook in Jira:
+
+**Webhook URL:**
+```
+http://your-tract-server:3100/webhook/jira
+```
+
+**Events to subscribe:**
+- ✅ `worklog_created`
+- ✅ `worklog_updated`
+- ✅ `issue_created`
+- ✅ `issue_updated`
+
+All worklog events will be automatically synced to the monthly JSONL files.
