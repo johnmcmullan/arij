@@ -138,15 +138,32 @@ if [ -z "$JIRA_PASSWORD" ]; then
   error "Jira password required"
 fi
 
-# Check if we can copy existing tickets
+# Check if we can copy existing tickets for this project
 EXISTING_TICKETS=""
-if [ -d "/home/${SUDO_USER}/work/apps/tickets" ]; then
-  warn "Found existing tickets at /home/${SUDO_USER}/work/apps/tickets"
-  read -p "Copy existing tickets instead of re-importing from Jira? [y/N]: " COPY_EXISTING
-  if [[ "$COPY_EXISTING" =~ ^[Yy]$ ]]; then
-    EXISTING_TICKETS="/home/${SUDO_USER}/work/apps/tickets"
-  fi
+# Look for project-specific tickets directory
+if [ "$PROJECT_LOWER" = "app" ]; then
+  # APP project can be either 'tickets' or 'app-tickets'
+  POSSIBLE_PATHS=(
+    "/home/${SUDO_USER}/work/apps/tickets"
+    "/home/${SUDO_USER}/work/apps/app-tickets"
+  )
+else
+  # Other projects use project-specific naming
+  POSSIBLE_PATHS=(
+    "/home/${SUDO_USER}/work/apps/${PROJECT_LOWER}-tickets"
+  )
 fi
+
+for path in "${POSSIBLE_PATHS[@]}"; do
+  if [ -d "$path" ]; then
+    warn "Found existing tickets at $path"
+    read -p "Copy existing tickets instead of re-importing from Jira? [y/N]: " COPY_EXISTING
+    if [[ "$COPY_EXISTING" =~ ^[Yy]$ ]]; then
+      EXISTING_TICKETS="$path"
+    fi
+    break
+  fi
+done
 
 # Create or copy ticket repository
 if [ -n "$EXISTING_TICKETS" ] && [ -d "$EXISTING_TICKETS" ]; then
@@ -158,12 +175,18 @@ if [ -n "$EXISTING_TICKETS" ] && [ -d "$EXISTING_TICKETS" ]; then
 else
   info "Running tract onboard for $PROJECT_NAME..."
   
-  cd "$TRACT_HOME"
+  # Create output directory
+  mkdir -p "$REPO_DIR"
+  chown "$TRACT_USER:$TRACT_USER" "$REPO_DIR"
+  
+  cd "$REPO_DIR"
   sudo -u "$TRACT_USER" \
-    JIRA_URL="$JIRA_URL" \
-    JIRA_USERNAME="$JIRA_USERNAME" \
-    JIRA_PASSWORD="$JIRA_PASSWORD" \
-    "${TRACT_HOME}/bin/tract" onboard "$PROJECT_NAME" --import-tickets
+    "${TRACT_HOME}/bin/tract" onboard \
+    --project "$PROJECT_NAME" \
+    --jira "$JIRA_URL" \
+    --user "$JIRA_USERNAME" \
+    --password "$JIRA_PASSWORD" \
+    --output .
   
   success "Onboarded $PROJECT_NAME from Jira"
   
@@ -442,10 +465,14 @@ echo ""
 echo "📍 For Developers:"
 echo ""
 echo "Clone the tickets repository:"
-echo "  git clone $(whoami)@$(hostname):$BARE_REPO"
+echo "  git clone tract@$(hostname):$BARE_REPO"
+echo "  # Or via git-daemon:"
+echo "  git clone git://$(hostname)/${PROJECT_LOWER}-tickets.git"
 echo ""
 echo "Or as submodule in code repo:"
-echo "  git submodule add $(whoami)@$(hostname):$BARE_REPO tickets"
+echo "  git submodule add tract@$(hostname):$BARE_REPO ${PROJECT_LOWER}-tickets"
+echo "  # Or via git-daemon:"
+echo "  git submodule add git://$(hostname)/${PROJECT_LOWER}-tickets.git ${PROJECT_LOWER}-tickets"
 echo ""
 echo "📊 Monitor & Debug:"
 echo ""
