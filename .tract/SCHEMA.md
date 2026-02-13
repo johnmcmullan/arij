@@ -1,11 +1,11 @@
-# Arij Schema Specification
+# Tract Schema Specification
 
 > The product is a specification. The interface is any LLM. The infrastructure is git.
 
 **Version:** 1.0.0
 **Date:** 2026-02-09
 
-This document is the complete reference for operating an Arij project management system. An LLM reading this document should be able to create, query, update, and manage all aspects of the system using only filesystem operations and git.
+This document is the complete reference for operating a Tract project management system. An LLM reading this document should be able to create, query, update, and manage all aspects of the system using only filesystem operations and git.
 
 ---
 
@@ -38,11 +38,11 @@ This document is the complete reference for operating an Arij project management
 
 Ticket repos work in two modes with zero changes. See `FEDERATION.md` for full details.
 
-**Standalone mode** — ticket repo cloned on its own (Arij server or developer):
+**Standalone mode** — ticket repo cloned on its own (Tract server or developer):
 
 ```
 tickets-tb/                      # self-contained ticket repo
-├── .arij/
+├── .tract/
 │   ├── config.yaml
 │   ├── workflows/
 │   ├── sprints/
@@ -59,16 +59,16 @@ tickets-tb/                      # self-contained ticket repo
 trading-platform/                # code repo
 ├── src/
 ├── tickets/                     # git submodule → tickets-tb repo
-│   ├── .arij/
+│   ├── .tract/
 │   │   └── config.yaml
 │   ├── TB-001.md
 │   └── TB-002.md
-├── .arij/                       # optional parent config
+├── .tract/                       # optional parent config
 │   └── config.yaml              # can point at submodule path
 └── ...
 ```
 
-**Key principle:** The ticket repo must be **self-contained** — it carries its own `.arij/` config, sprints, boards, and everything else. This is what makes dual-mode possible. The same repo works identically whether cloned standalone or mounted as a submodule.
+**Key principle:** The ticket repo must be **self-contained** — it carries its own `.tract/` config, sprints, boards, and everything else. This is what makes dual-mode possible. The same repo works identically whether cloned standalone or mounted as a submodule.
 
 ### Per-Repository Layout (Code + Tickets in One Repo)
 
@@ -76,7 +76,7 @@ For simpler setups where tickets live alongside code in a single repo:
 
 ```
 repo/
-├── .arij/
+├── .tract/
 │   ├── config.yaml              # Project config (prefix, types, statuses)
 │   ├── components.yaml          # Logical component → physical location map
 │   ├── boards/
@@ -101,17 +101,17 @@ repo/
 
 ### Key Rules
 
-- **`.arij/`** holds all configuration. Never put tickets here.
+- **`.tract/`** holds all configuration. Never put tickets here.
 - **Ticket files** live at the repo root (standalone ticket repos) or in `tickets/` (code repos). Flat — no subdirectories. One file per ticket.
 - Ticket filename is `{ID}.md` — e.g., `TB-042.md`.
 - Multiple projects in one repo: use `tickets/PROJECT/` directories (e.g., `tickets/TB/`, `tickets/APP/`).
-- **Self-contained ticket repos** must carry their own `.arij/` directory with full config — they must work without any parent repo.
+- **Self-contained ticket repos** must carry their own `.tract/` directory with full config — they must work without any parent repo.
 
 ### Multi-Project Repository Layout
 
 ```
 repo/
-├── .arij/
+├── .tract/
 │   ├── config.yaml              # Lists all project prefixes
 │   ├── components.yaml
 │   └── ...
@@ -142,7 +142,7 @@ projects:
 When a repo has one project, tickets live directly in `tickets/`:
 
 ```yaml
-# .arij/config.yaml
+# .tract/config.yaml
 prefix: TB
 types: [bug, story, task, epic]
 statuses: [backlog, todo, in-progress, review, done]
@@ -361,7 +361,7 @@ This is deliberate. Merge conflicts are explicit and visible — better than sil
 
 ## 5. Project Configuration
 
-### `.arij/config.yaml`
+### `.tract/config.yaml`
 
 ```yaml
 prefix: TB
@@ -406,14 +406,14 @@ projects:
 Configuration merges from two levels:
 
 ```
-~/.config/arij/defaults.yaml    ← User-level defaults (applied everywhere)
-repo/.arij/config.yaml          ← Repo-level overrides
+~/.config/tract/defaults.yaml    ← User-level defaults (applied everywhere)
+repo/.tract/config.yaml          ← Repo-level overrides
 ```
 
 ### User Defaults Example
 
 ```yaml
-# ~/.config/arij/defaults.yaml
+# ~/.config/tract/defaults.yaml
 default_assignee: john
 default_priority: medium
 priorities: [critical, high, medium, low]
@@ -434,7 +434,7 @@ The final effective config is: `user_defaults | repo_config` (repo wins on confl
 
 A workspace ties multiple repos together for cross-project queries.
 
-### `~/.config/arij/workspace.yaml`
+### `~/.config/tract/workspace.yaml`
 
 ```yaml
 repos:
@@ -462,7 +462,7 @@ repos:
 
 Components map logical names to physical locations (repos, paths, URLs).
 
-### `.arij/components.yaml`
+### `.tract/components.yaml`
 
 ```yaml
 components:
@@ -516,9 +516,9 @@ The component value must match a key in `components.yaml`. This is a soft refere
 
 ## 9. Sprints
 
-A sprint is a YAML file in `.arij/sprints/`.
+A sprint is a YAML file in `.tract/sprints/`.
 
-### `.arij/sprints/2026-W07.yaml`
+### `.tract/sprints/2026-W07.yaml`
 
 ```yaml
 name: Sprint 7
@@ -558,7 +558,7 @@ Resolution: scan all sprint YAML files, find the one where `start <= today <= en
 
 A board is a YAML view definition — it describes columns and filters over ticket frontmatter.
 
-### `.arij/boards/engineering.yaml`
+### `.tract/boards/engineering.yaml`
 
 ```yaml
 name: Engineering Board
@@ -578,7 +578,7 @@ query:
   repos: [TB, FIX]
 ```
 
-### `.arij/boards/support-dashboard.yaml`
+### `.tract/boards/support-dashboard.yaml`
 
 ```yaml
 name: Support Dashboard
@@ -621,7 +621,7 @@ A board is rendered by:
 
 Releases are **workspace-level** — they span multiple projects because multiple components ship together.
 
-### `.arij/releases/6.8.0.yaml`
+### `.tract/releases/6.8.0.yaml`
 
 ```yaml
 name: "6.8.0"
@@ -672,9 +672,9 @@ To assess release readiness, query all tickets where `fix_version: "6.8.0"` and 
 
 ## 12. Customers
 
-Customer records live in `.arij/customers/`.
+Customer records live in `.tract/customers/`.
 
-### `.arij/customers/acme-corp.yaml`
+### `.tract/customers/acme-corp.yaml`
 
 ```yaml
 name: Acme Corporation
@@ -708,9 +708,9 @@ A contact is stale if `last_verified` is more than 90 days ago. An agent should 
 
 ## 13. Saved Queries
 
-Saved queries are reusable filter definitions stored in `.arij/queries/`.
+Saved queries are reusable filter definitions stored in `.tract/queries/`.
 
-### `.arij/queries/blocked-by-eng.yaml`
+### `.tract/queries/blocked-by-eng.yaml`
 
 ```yaml
 name: Support cases blocked by engineering
@@ -722,7 +722,7 @@ filter:
     rel: blocked_by
 ```
 
-### `.arij/queries/critical-open.yaml`
+### `.tract/queries/critical-open.yaml`
 
 ```yaml
 name: Critical open tickets
@@ -732,7 +732,7 @@ filter:
 repos: [TB, FIX, APP]
 ```
 
-### `.arij/queries/stale-tickets.yaml`
+### `.tract/queries/stale-tickets.yaml`
 
 ```yaml
 name: Stale tickets (no update in 30 days)
@@ -925,19 +925,19 @@ TB-042, TB-055: refactor socket configuration for all FIX sessions
 
 ## 18. Distribution & Submodules
 
-Git submodules are the **primary distribution mechanism** for Arij at scale. See `FEDERATION.md` for the full federation design.
+Git submodules are the **primary distribution mechanism** for Tract at scale. See `FEDERATION.md` for the full federation design.
 
 ### Dual-Mode Ticket Repos
 
 Ticket repos are self-contained and work in two modes with zero changes:
 
-**Standalone mode** (Arij server clones them directly):
+**Standalone mode** (Tract server clones them directly):
 
 ```
-arij-server/
+tract-server/
 ├── tickets-tb/          # cloned standalone
 ├── tickets-app/         # cloned standalone
-└── arij-web/            # the web server
+└── tract-web/            # the web server
 ```
 
 **Submodule mode** (developer mounts them in code repos):
@@ -963,7 +963,7 @@ trading-platform/        # code repo
 ### Benefits of Standalone Mode
 
 - **Simpler setup** — just clone and go
-- **Server-friendly** — Arij server clones repos without needing code repos
+- **Server-friendly** — Tract server clones repos without needing code repos
 - **Cross-project queries** — server sees all ticket repos in one place
 
 ### Excluding Tickets from Archives
@@ -972,7 +972,7 @@ For repos distributed to customers (e.g., via `git archive`), add to `.gitattrib
 
 ```gitattributes
 tickets/ export-ignore
-.arij/ export-ignore
+.tract/ export-ignore
 ```
 
 This strips tickets and config from archives. Customers get code only.
@@ -985,15 +985,15 @@ This strips tickets and config from archives. Customers get code only.
 
 | What | Where |
 |------|-------|
-| Project config | `repo/.arij/config.yaml` |
-| User defaults | `~/.config/arij/defaults.yaml` |
-| Workspace config | `~/.config/arij/workspace.yaml` |
-| Components | `repo/.arij/components.yaml` |
-| Sprints | `repo/.arij/sprints/{id}.yaml` |
-| Boards | `repo/.arij/boards/{name}.yaml` |
-| Releases | `repo/.arij/releases/{version}.yaml` |
-| Customers | `repo/.arij/customers/{key}.yaml` |
-| Saved queries | `repo/.arij/queries/{name}.yaml` |
+| Project config | `repo/.tract/config.yaml` |
+| User defaults | `~/.config/tract/defaults.yaml` |
+| Workspace config | `~/.config/tract/workspace.yaml` |
+| Components | `repo/.tract/components.yaml` |
+| Sprints | `repo/.tract/sprints/{id}.yaml` |
+| Boards | `repo/.tract/boards/{name}.yaml` |
+| Releases | `repo/.tract/releases/{version}.yaml` |
+| Customers | `repo/.tract/customers/{key}.yaml` |
+| Saved queries | `repo/.tract/queries/{name}.yaml` |
 | Tickets | `repo/tickets/{ID}.md` or `repo/tickets/{PROJECT}/{ID}.md` |
 
 ### Frontmatter Quick Reference

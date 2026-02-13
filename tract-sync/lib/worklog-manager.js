@@ -1,0 +1,343 @@
+const fs = require('fs');
+const path = require('path');
+const simpleGit = require('simple-git');
+
+class WorklogManager {
+  constructor(config) {
+    // Separate worklog path from ticket repo path
+    // This allows central worklogs across all projects
+    this.worklogPath = config.worklogPath || path.join(config.repoPath, 'worklogs');
+    this.worklogsDir = this.worklogPath;
+    this.git = simpleGit(this.worklogPath);
+    this.jiraClient = config.jiraClient;
+    this.syncUser = config.syncUser || 'tract-sync';
+    this.syncEmail = config.syncEmail || 'tract-sync@localhost';
+    
+    // Ensure worklogs directory exists
+    if (!fs.existsSync(this.worklogsDir)) {
+      fs.mkdirSync(this.worklogsDir, { recursive: true });
+      
+      // Initialize git if not already a repo
+      if (!fs.existsSync(path.join(this.worklogsDir, '.git'))) {
+        const git = simpleGit(this.worklogsDir);
+        git.init()
+          .then(() => git.addConfig('user.name', this.syncUser))
+          .then(() => git.addConfig('user.email', this.syncEmail))
+          .catch(err => console.error('Failed to init worklogs git repo:', err));
+      }
+    }
+    
+    // Track pending commits
+    this.pendingCommit = false;
+    this.commitTimer = null;
+  }
+
+  // Add a worklog entry
+  async addWorklog(issueKey, entry) {
+    const { author, time, comment, started } = entry;
+    
+    // Parse time to seconds
+    const seconds = this.parseTimeToSeconds(time);
+    if (!seconds) {
+      throw new Error(`Invalid time format: ${time}`);
+    }
+    
+    // Default started to now if not provided
+    const startedDate = started || new Date().toISOString();
+    
+    // Create JSONL entry with issue key
+    const logEntry = {
+      issue: issueKey,
+      author: author,
+      started: startedDate,
+      seconds: seconds,
+      comment: comment || ''
+    };
+    
+    // Append to monthly file (e.g., 2026-02.jsonl)
+    const month = startedDate.substring(0, 7); // YYYY-MM
+    const filePath = path.join(this.worklogsDir, `${month}.jsonl`);
+    fs.appendFileSync(filePath, JSON.stringify(logEntry) + '\n', 'utf8');
+    
+    console.log(`📝 Added worklog: ${issueKey} - ${author} - ${time}`);
+    
+    // Post to Jira immediately
+    try {
+      await this.jiraClient.post(`/rest/api/2/issue/${issueKey}/worklog`, {
+        timeSpentSeconds: seconds,
+        comment: comment,
+        started: startedDate
+      });
+      console.log(`  ✅ Posted to Jira`);
+    } catch (error) {
+      console.error(`  ❌ Failed to post to Jira:`, error.response?.data || error.message);
+      // Continue - it's in git at least
+    }
+    
+    // Schedule batch commit
+    this.scheduleBatchCommit();
+    
+    return logEntry;
+  }
+
+  // Add a worklog entry from Jira webhook (don't post back to Jira)
+  async addWorklogFromJira(issueKey, jiraWorklog) {
+    const logEntry = {
+      issue: issueKey,
+      author: jiraWorklog.author?.name || jiraWorklog.author?.displayName || 'unknown',
+      started: jiraWorklog.started,
+      seconds: jiraWorklog.timeSpentSeconds,
+      comment: jiraWorklog.comment || '',
+      jiraId: jiraWorklog.id // Track Jira worklog ID to avoid duplicates
+    };
+    
+    // Append to monthly file
+    const month = logEntry.started.substring(0, 7); // YYYY-MM
+    const filePath = path.join(this.worklogsDir, `${month}.jsonl`);
+    
+    // Check if this worklog already exists (avoid duplicates)
+    if (fs.existsSync(filePath)) {
+      const existing = fs.readFileSync(filePath, 'utf8');
+      if (existing.includes(`"jiraId":"${jiraWorklog.id}"`)) {
+        console.log(`  ⏭️  Worklog ${jiraWorklog.id} already exists, skipping`);
+        return logEntry;
+      }
+    }
+    
+    fs.appendFileSync(filePath, JSON.stringify(logEntry) + '\n', 'utf8');
+    
+    console.log(`📝 Added worklog from Jira: ${issueKey} - ${logEntry.author} - ${this.formatSeconds(logEntry.seconds)}`);
+    
+    // Schedule batch commit
+    this.scheduleBatchCommit();
+    
+    return logEntry;
+  }
+
+  // Get all worklogs for an issue (scans all monthly files)
+  getWorklogs(issueKey) {
+    const files = fs.readdirSync(this.worklogsDir)
+      .filter(f => f.endsWith('.jsonl') && f.match(/^\d{4}-\d{2}\.jsonl$/));
+    
+    const entries = [];
+    
+    for (const file of files) {
+      const filePath = path.join(this.worklogsDir, file);
+      const content = fs.readFileSync(filePath, 'utf8');
+      const lines = content.trim().split('\n').filter(line => line.length > 0);
+      
+      for (const line of lines) {
+        const entry = JSON.parse(line);
+        if (entry.issue === issueKey) {
+          entries.push(entry);
+        }
+      }
+    }
+    
+    // Sort by started time
+    entries.sort((a, b) => new Date(a.started) - new Date(b.started));
+    
+    return entries;
+  }
+
+  // Get timesheet for a user (day, week, or month)
+  getTimesheet(author, options = {}) {
+    const { date, week, month } = options;
+    
+    // Determine which monthly files to read
+    let monthsToRead = [];
+    
+    if (month) {
+      monthsToRead = [month];
+    } else if (week) {
+      // Get months for this week (might span two months)
+      const { startMonth, endMonth } = this.getMonthsForWeek(week);
+      monthsToRead = [startMonth];
+      if (endMonth !== startMonth) {
+        monthsToRead.push(endMonth);
+      }
+    } else if (date) {
+      monthsToRead = [date.substring(0, 7)];
+    } else {
+      // Default to current month
+      monthsToRead = [new Date().toISOString().substring(0, 7)];
+    }
+    
+    // Read worklog files for relevant months
+    const entries = [];
+    
+    for (const targetMonth of monthsToRead) {
+      const filePath = path.join(this.worklogsDir, `${targetMonth}.jsonl`);
+      
+      if (!fs.existsSync(filePath)) {
+        continue;
+      }
+      
+      const content = fs.readFileSync(filePath, 'utf8');
+      const lines = content.trim().split('\n').filter(line => line.length > 0);
+      
+      for (const line of lines) {
+        const entry = JSON.parse(line);
+        if (entry.author === author) {
+          entries.push(entry);
+        }
+      }
+    }
+    
+    // Filter by date/week/month
+    let filtered = entries;
+    
+    if (date) {
+      const targetDate = new Date(date).toISOString().split('T')[0];
+      filtered = entries.filter(e => {
+        const entryDate = new Date(e.started).toISOString().split('T')[0];
+        return entryDate === targetDate;
+      });
+    } else if (week) {
+      // Filter by ISO week
+      filtered = entries.filter(e => {
+        const entryWeek = this.getISOWeek(new Date(e.started));
+        return entryWeek === week;
+      });
+    } else if (month) {
+      // Filter by month (YYYY-MM)
+      filtered = entries.filter(e => {
+        const entryMonth = new Date(e.started).toISOString().slice(0, 7);
+        return entryMonth === month;
+      });
+    }
+    
+    // Sort by started time
+    filtered.sort((a, b) => new Date(a.started) - new Date(b.started));
+    
+    return filtered;
+  }
+
+  // Schedule batch commit (debounced)
+  scheduleBatchCommit() {
+    this.pendingCommit = true;
+    
+    if (this.commitTimer) {
+      clearTimeout(this.commitTimer);
+    }
+    
+    // Batch commits every 5 minutes
+    this.commitTimer = setTimeout(() => {
+      this.performBatchCommit();
+    }, 5 * 60 * 1000);
+  }
+
+  // Perform the actual git commit
+  async performBatchCommit() {
+    if (!this.pendingCommit) return;
+    
+    try {
+      // Check if there are changes in worklogs/
+      const status = await this.git.status();
+      const worklogChanges = status.files.filter(f => f.path.startsWith('worklogs/'));
+      
+      if (worklogChanges.length === 0) {
+        this.pendingCommit = false;
+        return;
+      }
+      
+      // Commit worklog changes
+      await this.git.add('worklogs/');
+      const timestamp = new Date().toISOString().split('T')[0] + ' ' + 
+                       new Date().toTimeString().split(' ')[0];
+      await this.git.commit(
+        `Worklog entries ${timestamp}\n\n[tract-sync]`,
+        { '--author': `"${this.syncUser} <${this.syncEmail}>"` }
+      );
+      
+      console.log(`📦 Committed worklog batch`);
+      this.pendingCommit = false;
+    } catch (error) {
+      console.error(`❌ Failed to commit worklogs:`, error.message);
+    }
+  }
+
+  // Force immediate commit (for shutdown)
+  async flush() {
+    if (this.commitTimer) {
+      clearTimeout(this.commitTimer);
+      this.commitTimer = null;
+    }
+    await this.performBatchCommit();
+  }
+
+  // Parse time string to seconds
+  parseTimeToSeconds(timeStr) {
+    if (!timeStr) return null;
+    
+    const match = timeStr.match(/^(\d+(?:\.\d+)?)\s*([hdmw]?)$/i);
+    if (!match) return null;
+    
+    const value = parseFloat(match[1]);
+    const unit = match[2].toLowerCase() || 'h';
+    
+    const multipliers = {
+      'm': 60,
+      'h': 3600,
+      'd': 28800, // 8 hour workday
+      'w': 144000 // 5 day work week
+    };
+    
+    return Math.round(value * (multipliers[unit] || 3600));
+  }
+
+  // Format seconds to human-readable time
+  formatSeconds(seconds) {
+    if (!seconds || seconds === 0) return '0m';
+    
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    
+    if (hours >= 8) {
+      const days = Math.floor(hours / 8);
+      const remainingHours = hours % 8;
+      if (remainingHours > 0) {
+        return `${days}d ${remainingHours}h`;
+      }
+      return `${days}d`;
+    } else if (hours > 0) {
+      if (minutes > 0) {
+        return `${hours}h ${minutes}m`;
+      }
+      return `${hours}h`;
+    } else {
+      return `${minutes}m`;
+    }
+  }
+
+  // Get ISO week number
+  getISOWeek(date) {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + 4 - (d.getDay() || 7));
+    const yearStart = new Date(d.getFullYear(), 0, 1);
+    const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+    return `${d.getFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+  }
+
+  // Get months that a week spans
+  getMonthsForWeek(weekStr) {
+    const [year, week] = weekStr.split('-W').map(Number);
+    
+    // Calculate start date of week
+    const jan4 = new Date(year, 0, 4);
+    const weekStart = new Date(jan4);
+    weekStart.setDate(jan4.getDate() - (jan4.getDay() || 7) + 1 + (week - 1) * 7);
+    
+    // Calculate end date of week
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+    
+    const startMonth = weekStart.toISOString().substring(0, 7);
+    const endMonth = weekEnd.toISOString().substring(0, 7);
+    
+    return { startMonth, endMonth };
+  }
+}
+
+module.exports = WorklogManager;

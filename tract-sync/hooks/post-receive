@@ -1,0 +1,67 @@
+#!/bin/bash
+#
+# Git post-receive hook for Tract sync
+# Install: cp hooks/post-receive /path/to/repo.git/hooks/post-receive
+#
+
+SYNC_URL="${TRACT_SYNC_URL:-http://localhost:3000/webhook/git}"
+
+# Read ref updates from stdin
+while read oldrev newrev refname; do
+  # Only process main/master branch
+  if [[ "$refname" != "refs/heads/main" ]] && [[ "$refname" != "refs/heads/master" ]]; then
+    continue
+  fi
+  
+  echo "🔄 Tract sync: processing $refname"
+  
+  # Get list of changed files
+  changed_files=$(git diff --name-only $oldrev $newrev | grep '^issues/.*\.md$')
+  
+  if [ -z "$changed_files" ]; then
+    echo "   No ticket changes detected"
+    continue
+  fi
+  
+  # Build JSON payload with file contents
+  json_payload='{"changedFiles":['
+  first=true
+  
+  for file in $changed_files; do
+    # Get old and new content
+    old_content=$(git show $oldrev:$file 2>/dev/null | jq -Rs .)
+    new_content=$(git show $newrev:$file 2>/dev/null | jq -Rs .)
+    
+    if [ "$old_content" = "null" ]; then
+      old_content='""'
+    fi
+    
+    if [ "$new_content" = "null" ]; then
+      new_content='""'
+    fi
+    
+    if [ "$first" = true ]; then
+      first=false
+    else
+      json_payload="${json_payload},"
+    fi
+    
+    json_payload="${json_payload}{\"path\":\"$file\",\"oldContent\":$old_content,\"newContent\":$new_content}"
+  done
+  
+  json_payload="${json_payload}]}"
+  
+  # Send to sync service
+  echo "   Syncing $(echo $changed_files | wc -w) files to Jira..."
+  
+  response=$(curl -s -X POST \
+    -H "Content-Type: application/json" \
+    -d "$json_payload" \
+    "$SYNC_URL")
+  
+  if [ $? -eq 0 ]; then
+    echo "   ✅ Sync complete"
+  else
+    echo "   ❌ Sync failed"
+  fi
+done

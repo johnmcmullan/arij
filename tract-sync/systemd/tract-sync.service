@@ -1,0 +1,25 @@
+[Unit]
+Description=Tract Sync Service - Bidirectional Jira sync
+After=network.target
+
+[Service]
+Type=simple
+User=john.mcmullan
+WorkingDirectory=/home/john.mcmullan/work/tract/tract-sync
+Environment="JIRA_URL=https://jira.orcsoftware.com"
+Environment="JIRA_USERNAME=john.mcmullan"
+Environment="JIRA_PASSWORD=YOUR_PASSWORD_HERE"
+Environment="TRACT_REPO_PATH=/home/john.mcmullan/work/apps/tickets"
+Environment="SYNC_USER=tract-sync"
+Environment="SYNC_EMAIL=tract-sync@localhost"
+Environment="PORT=3000"
+Environment="NODE_ENV=production"
+ExecStart=/usr/bin/node /home/john.mcmullan/work/tract/tract-sync/server.js
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=tract-sync
+
+[Install]
+WantedBy=multi-user.target
