@@ -54,10 +54,15 @@ echo ""
 # Create tract user if doesn't exist
 if ! id "$TRACT_USER" &>/dev/null; then
   info "Creating $TRACT_USER user (UID $TRACT_UID)..."
-  useradd -r -u "$TRACT_UID" -s /sbin/nologin -d "$TRACT_HOME" -m "$TRACT_USER"
+  useradd -r -u "$TRACT_UID" -s /bin/bash -d "$TRACT_HOME" -m "$TRACT_USER"
   success "Created $TRACT_USER user"
 else
   info "$TRACT_USER user already exists"
+  # Ensure tract user has a login shell
+  if [ "$(getent passwd $TRACT_USER | cut -d: -f7)" = "/sbin/nologin" ]; then
+    info "Updating $TRACT_USER shell to /bin/bash..."
+    usermod -s /bin/bash "$TRACT_USER"
+  fi
 fi
 
 # Configure git for tract user
@@ -302,18 +307,76 @@ SERVICE_EOF
   success "Systemd template installed"
 fi
 
+# Create central worklogs directory if it doesn't exist
+WORKLOGS_DIR="/opt/tract/worklogs"
+if [ ! -d "$WORKLOGS_DIR" ]; then
+  info "Creating central worklogs directory..."
+  mkdir -p "$WORKLOGS_DIR"
+  chown "$TRACT_USER:$TRACT_USER" "$WORKLOGS_DIR"
+  
+  # Initialize as git repo
+  cd "$WORKLOGS_DIR"
+  sudo -u "$TRACT_USER" git init
+  sudo -u "$TRACT_USER" git config user.name "Tract Sync"
+  sudo -u "$TRACT_USER" git config user.email "tract-sync@localhost"
+  
+  # Create README
+  cat > README.md << 'WORKLOG_README'
+# Tract Central Worklogs
+
+This directory contains time tracking entries for all projects (APP, TB, PRD, etc.).
+
+## Format
+
+Monthly JSONL files: `YYYY-MM.jsonl`
+
+Each line is a JSON object:
+```json
+{"issue":"APP-1234","author":"john","started":"2026-02-13T10:00:00Z","seconds":7200,"comment":"Work description"}
+```
+
+## Querying
+
+```bash
+# All time for an issue
+grep '"issue":"APP-1234"' *.jsonl
+
+# All time by user
+grep '"author":"john"' *.jsonl
+
+# February 2026 timesheet
+cat 2026-02.jsonl
+```
+WORKLOG_README
+  
+  sudo -u "$TRACT_USER" git add README.md
+  sudo -u "$TRACT_USER" git commit -m "Initialize central worklogs"
+  
+  success "Central worklogs directory created"
+else
+  info "Central worklogs directory already exists"
+fi
+
 # Create config file for this project
 info "Creating service configuration..."
 mkdir -p "${TRACT_HOME}/config"
+
+# Auto-detect next available port starting from 3100
+PORT=3100
+while lsof -Pi :$PORT -sTCP:LISTEN -t >/dev/null 2>&1; do
+  PORT=$((PORT + 1))
+done
+info "Auto-detected available port: $PORT"
 
 cat > "${TRACT_HOME}/config/${PROJECT_LOWER}.env" << ENV_EOF
 JIRA_URL=${JIRA_URL}
 JIRA_USERNAME=${JIRA_USERNAME}
 JIRA_PASSWORD=${JIRA_PASSWORD}
 TRACT_REPO_PATH=${REPO_DIR}
+WORKLOG_REPO_PATH=/opt/tract/worklogs
 SYNC_USER=tract-sync
 SYNC_EMAIL=tract-sync@localhost
-PORT=3000
+PORT=${PORT}
 NODE_ENV=production
 ENV_EOF
 
