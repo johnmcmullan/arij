@@ -1,0 +1,48 @@
+=== LEFT SIDE (Chat Interface) ===
+
+You:
+Create a ticket for the auth bug we discussed earlier.
+Make it high priority and assign to me.
+
+AI (Claude/Copilot):
+Sure! Creating a ticket now...
+
+[Running: tract create APP --title "Fix authentication bug" 
+         --type bug --priority high --assignee john.mcmullan]
+
+✅ Created APP-3458
+
+
+=== RIGHT SIDE (Terminal) ===
+
+$ tract create APP \
+    --title "Fix authentication bug" \
+    --type bug \
+    --priority high \
+    --assignee john.mcmullan
+
+✅ Created APP-3458
+   File: issues/APP-3458.md
+   Synced to Jira
+
+
+=== CONTINUE LEFT SIDE ===
+
+You:
+I spent 3 hours on APP-3456. Log it.
+
+AI:
+Logging time...
+
+[Running: tract log APP-3456 3h "Fixed session timeout bug"]
+
+✅ Logged 3h to APP-3456
+
+
+=== CONTINUE RIGHT SIDE ===
+
+$ tract log APP-3456 3h "Fixed session timeout bug"
+
+✅ Time logged successfully!
+   Entry: 2026-02-13T23:15:00Z
+   Synced to Jira and committed to git

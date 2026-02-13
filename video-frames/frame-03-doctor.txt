@@ -1,0 +1,22 @@
+$ tract doctor
+
+🔍 Tract Doctor - Running diagnostics
+
+Directory: /Users/john/code/app-tickets
+
+✓ Git installed (git version 2.39.0)
+✓ Git repository initialized
+✓ Tract config directory exists
+ℹ Tract config file valid (Project: APP)
+ℹ Issues directory exists (42 tickets)
+ℹ Git user configured (John McMullan <john@company.com>)
+✓ Git remote configured (origin → ssh://git@server/app-tickets.git)
+ℹ Sync server configured (http://tract-server:3100)
+✓ Sync server reachable (Server healthy)
+
+────────────────────────────────────────────────────────────
+Summary:
+  ✓ 5 passed
+  ℹ 4 info
+
+✓ All checks passed! Tract is healthy.

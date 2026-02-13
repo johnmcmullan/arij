@@ -1,0 +1,15 @@
+$ tract create APP \
+    --title "Fix session timeout bug" \
+    --type bug \
+    --priority high \
+    --assignee john.mcmullan
+
+📝 Creating ticket in APP...
+   Title: Fix session timeout bug
+   Type: bug
+
+✅ Created APP-3456
+   File: issues/APP-3456.md
+   Synced to Jira and committed to git
+
+🔗 Edit: issues/APP-3456.md

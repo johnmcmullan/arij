@@ -1,0 +1,14 @@
+$ tract timesheet
+
+Timesheet for john.mcmullan - 2026-02-13
+
+┌─────────┬──────────┬──────┬─────────────────────────────────┐
+│ Issue   │ Started  │ Time │ Comment                         │
+├─────────┼──────────┼──────┼─────────────────────────────────┤
+│ APP-3450│ 09:00    │ 4h   │ Implemented caching layer       │
+│ APP-3451│ 13:00    │ 2h   │ Code review and testing         │
+│ APP-3452│ 15:00    │ 1.5h │ Bug fixes in payment processor  │
+│ APP-3456│ 20:30    │ 2h   │ Fixed session TTL               │
+└─────────┴──────────┴──────┴─────────────────────────────────┘
+
+Total: 9.5h ✅ (target: 8h)

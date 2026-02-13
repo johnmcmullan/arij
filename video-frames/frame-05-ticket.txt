@@ -1,0 +1,19 @@
+$ cat issues/APP-3456.md
+
+---
+title: Fix session timeout bug
+type: Bug
+status: To Do
+priority: High
+assignee: john.mcmullan
+created: 2026-02-13T18:30:00Z
+components: [Auth, Backend]
+---
+
+Users are getting logged out after 5 minutes.
+Session timeout should be 30 minutes, not 5.
+
+## Technical Details
+
+The issue is in auth-middleware.js where SESSION_TTL 
+is set to 300 (5 minutes) instead of 1800 (30 minutes).
