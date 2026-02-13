@@ -5,7 +5,7 @@
 Just trigger the update API:
 
 ```bash
-curl -X POST http://reek:3100/update
+curl -X POST http://tract-server:3100/update
 ```
 
 The service will:
@@ -16,9 +16,9 @@ The service will:
 
 Check status after 10 seconds:
 ```bash
-curl http://reek:3100/health
+curl http://tract-server:3100/health
 # or
-ssh reek systemctl status tract-sync@app.service
+ssh tract-server systemctl status tract-sync@app.service
 ```
 
 ## First-Time Setup
@@ -26,7 +26,7 @@ ssh reek systemctl status tract-sync@app.service
 Before self-update works, give tract user ownership of git repo (run once):
 
 ```bash
-ssh reek
+ssh tract-server
 sudo chown -R tract:tract /opt/tract/tract
 ```
 
@@ -71,16 +71,16 @@ sudo systemctl restart tract-sync@app.service
 ## Update Multiple Projects
 
 ```bash
-curl -X POST http://reek:3100/update  # app project (port 3100)
-curl -X POST http://reek:3101/update  # tb project (port 3101)
-curl -X POST http://reek:3102/update  # prd project (port 3102)
+curl -X POST http://tract-server:3100/update  # app project (port 3100)
+curl -X POST http://tract-server:3101/update  # tb project (port 3101)
+curl -X POST http://tract-server:3102/update  # prd project (port 3102)
 ```
 
 ## Monitoring Updates
 
 ```bash
 # Watch logs during update
-ssh reek
+ssh tract-server
 sudo journalctl -u tract-sync@app.service -f
 ```
 
@@ -89,14 +89,14 @@ sudo journalctl -u tract-sync@app.service -f
 If an update breaks something:
 
 ```bash
-ssh reek
+ssh tract-server
 sudo -u tract bash
 cd /opt/tract/tract
 git reset --hard <previous-commit-sha>
 exit
 
 # Then trigger update to use old code
-curl -X POST http://reek:3100/update
+curl -X POST http://tract-server:3100/update
 ```
 
 ## Security
@@ -117,5 +117,5 @@ The endpoint is unauthenticated (internal network only). To add auth:
 
 3. Use with curl:
    ```bash
-   curl -X POST http://reek:3100/update -H "X-API-Key: your-secret-key"
+   curl -X POST http://tract-server:3100/update -H "X-API-Key: your-secret-key"
    ```

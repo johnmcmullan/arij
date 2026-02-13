@@ -4,7 +4,7 @@
 
 ```bash
 # Set your sync server URL (one time)
-export TRACT_SYNC_SERVER=http://reek:3100
+export TRACT_SYNC_SERVER=http://tract-server:3100
 
 # Create a minimal ticket
 tract create APP --title "Fix login bug"
@@ -209,10 +209,10 @@ The sync server is not running or not reachable:
 systemctl status tract-sync@app.service
 
 # Check network connectivity
-curl http://reek:3100/health
+curl http://tract-server:3100/health
 
 # Set correct server URL
-export TRACT_SYNC_SERVER=http://reek:3100
+export TRACT_SYNC_SERVER=http://tract-server:3100
 ```
 
 ### "Jira authentication failed"
@@ -233,7 +233,7 @@ If tickets remain in queue after Jira comes back:
 
 ```bash
 # Manually trigger queue processing
-curl -X POST http://reek:3100/sync/queue
+curl -X POST http://tract-server:3100/sync/queue
 
 # Check server logs for errors
 journalctl -u tract-sync@app.service -n 100

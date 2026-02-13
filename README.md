@@ -28,6 +28,24 @@ Tract is a project management system that treats tickets as **markdown files** i
 - **Resilience** - Team keeps working even when Jira is down
 - **Transparency** - All changes in git, auditable, searchable
 
+## Documentation Navigator
+
+**Choose your path:**
+
+- 🚀 **[QUICKSTART.md](QUICKSTART.md)** - Developers: Get running in 60 seconds
+- 📖 **[GETTING-STARTED.md](GETTING-STARTED.md)** - Comprehensive setup guide for developers
+- ✅ **[ONBOARDING-CHECKLIST.md](ONBOARDING-CHECKLIST.md)** - Admins: Step-by-step server setup
+- 🏗️ **[ARCHITECTURE.md](ARCHITECTURE.md)** - How Tract works under the hood
+- 🔧 **[tract-cli/README.md](tract-cli/README.md)** - Complete CLI reference
+- 🔄 **[tract-sync/README.md](tract-sync/README.md)** - Sync service installation & config
+- 📋 **[.tract/SCHEMA.md](.tract/SCHEMA.md)** - **For LLMs:** Complete API documentation
+
+**Not sure where to start?**
+- **Developer joining existing team?** → [QUICKSTART.md](QUICKSTART.md)
+- **First person setting up Tract?** → [ONBOARDING-CHECKLIST.md](ONBOARDING-CHECKLIST.md)
+- **Building LLM integration?** → `.tract/SCHEMA.md` (in your ticket repo)
+- **Debugging issues?** → Run `tract doctor`
+
 ## Quick Start
 
 ### Talk to Your LLM (Recommended)

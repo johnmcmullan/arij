@@ -4,7 +4,7 @@
 
 Configure the sync server URL once:
 ```bash
-export TRACT_SYNC_SERVER=http://reek:3100
+export TRACT_SYNC_SERVER=http://tract-server:3100
 # Add to ~/.bashrc or ~/.zshrc to make permanent
 ```
 

@@ -1,4 +1,4 @@
-# Arij Tempo — Automated Timekeeping
+# Tract Tempo — Automated Timekeeping
 
 > Time tracking for engineers should be mostly automated. The system derives time from git activity, calendar events, and IDE/CLI telemetry — and supports manual logging for everything else.
 
@@ -26,7 +26,7 @@ This document is the complete reference for operating Arij's timekeeping system.
 Time entries are stored as daily YAML files per user:
 
 ```
-.arij/
+.tract/
 └── time/
     ├── john/
     │   ├── 2026-02-09.yaml
@@ -40,7 +40,7 @@ Time entries are stored as daily YAML files per user:
 ### Daily File Format
 
 ```yaml
-# .arij/time/john/2026-02-10.yaml
+# .tract/time/john/2026-02-10.yaml
 date: 2026-02-10
 user: john
 status: draft          # draft | reviewed | submitted
@@ -176,7 +176,7 @@ Coding agents and IDE extensions can report active ticket context.
 **Protocol:** Any tool can append to a telemetry log file:
 
 ```
-# .arij/time/.telemetry/{user}-{date}.jsonl
+# .tract/time/.telemetry/{user}-{date}.jsonl
 {"ts":"2026-02-10T09:00:00Z","ticket":"TB-042","tool":"copilot-cli","event":"start"}
 {"ts":"2026-02-10T10:30:00Z","ticket":"TB-042","tool":"copilot-cli","event":"stop"}
 {"ts":"2026-02-10T10:30:00Z","ticket":"APP-019","tool":"cursor","event":"start"}
@@ -304,7 +304,7 @@ logged    = sum of all time entries across all users where ticket == this ticket
 remaining = estimate - logged (floor at 0)
 ```
 
-These values are **not stored in frontmatter** — they are computed at query time by scanning `.arij/time/*/` files. This follows the same principle as the `modified` derived field (SCHEMA.md §3): the source of truth is the time entry files, not a duplicated field.
+These values are **not stored in frontmatter** — they are computed at query time by scanning `.tract/time/*/` files. This follows the same principle as the `modified` derived field (SCHEMA.md §3): the source of truth is the time entry files, not a duplicated field.
 
 **However**, for performance, an LLM or automation tool **may** update the frontmatter `logged` and `remaining` values as a cache. If present in frontmatter, they are hints — the time entry files are authoritative.
 
@@ -316,7 +316,7 @@ Time entries reference ticket IDs directly. A developer working in one repo can 
 
 ```bash
 # Find all time logged against TB-042
-grep -r "ticket: TB-042" .arij/time/
+grep -r "ticket: TB-042" .tract/time/
 ```
 
 Or: scan all daily files, parse YAML, sum durations where `ticket == TB-042`.
@@ -382,7 +382,7 @@ If present, `x-rd-category` overrides the type-based classification.
 **Report format:**
 
 ```yaml
-# .arij/reports/rd/2026-02.yaml (can be generated and stored, or rendered on demand)
+# .tract/reports/rd/2026-02.yaml (can be generated and stored, or rendered on demand)
 month: 2026-02
 generated: 2026-03-01
 total_hours: 680.5
@@ -416,7 +416,7 @@ summary: |
   Key R&D activities: FIX protocol session management (TB), OAuth integration (APP).
 ```
 
-**The report format is configurable** via `.arij/config.yaml` (see §7). The default targets UK HMRC R&D tax credit requirements. Finance teams can define custom categories and output formats.
+**The report format is configurable** via `.tract/config.yaml` (see §7). The default targets UK HMRC R&D tax credit requirements. Finance teams can define custom categories and output formats.
 
 ### 6.3 Sprint Report
 
@@ -477,12 +477,12 @@ These rules are configurable (see §7).
 
 ## 7. Configuration
 
-### Time Config in `.arij/config.yaml`
+### Time Config in `.tract/config.yaml`
 
 Add a `tempo` section to the project config:
 
 ```yaml
-# .arij/config.yaml
+# .tract/config.yaml
 prefix: TB
 types: [bug, story, task, epic]
 statuses: [backlog, todo, in-progress, review, done]
@@ -538,10 +538,10 @@ Merge behaviour follows SCHEMA.md §6 — repo config overrides user defaults.
 
 | What | Where |
 |------|-------|
-| Daily time entries | `.arij/time/{user}/{YYYY-MM-DD}.yaml` |
-| IDE telemetry log | `.arij/time/.telemetry/{user}-{YYYY-MM-DD}.jsonl` |
-| Generated reports | `.arij/reports/{type}/{period}.yaml` (optional — can render on demand) |
-| Config | `.arij/config.yaml` → `tempo:` section |
+| Daily time entries | `.tract/time/{user}/{YYYY-MM-DD}.yaml` |
+| IDE telemetry log | `.tract/time/.telemetry/{user}-{YYYY-MM-DD}.jsonl` |
+| Generated reports | `.tract/reports/{type}/{period}.yaml` (optional — can render on demand) |
+| Config | `.tract/config.yaml` → `tempo:` section |
 
 ### LLM Commands (Natural Language)
 

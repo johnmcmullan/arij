@@ -1,4 +1,4 @@
-// Jira Killer - Board Drag & Drop (Vanilla JS, no frameworks)
+// Tract - Board Drag & Drop (Vanilla JS, no frameworks)
 
 let draggedTicket = null;
 

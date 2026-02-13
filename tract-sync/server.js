@@ -12,7 +12,7 @@ app.use(bodyParser.json());
 
 // Configuration from environment
 const config = {
-  jiraUrl: process.env.JIRA_URL || 'https://jira.orcsoftware.com',
+  jiraUrl: process.env.JIRA_URL || 'https://jira.company.com',
   jiraUsername: process.env.JIRA_USERNAME,
   jiraPassword: process.env.JIRA_PASSWORD,
   repoPath: process.env.TRACT_REPO_PATH,

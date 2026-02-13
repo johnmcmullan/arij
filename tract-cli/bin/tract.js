@@ -14,6 +14,12 @@ program
   .version(packageJson.version);
 
 program
+  .command('doctor')
+  .description('Run health checks and diagnostics')
+  .option('--tract <dir>', 'Tract ticket repository directory (defaults to current)', '.')
+  .action(require('../commands/doctor'));
+
+program
   .command('onboard')
   .description('Bootstrap a new Tract project from Jira')
   .requiredOption('--jira <url>', 'Jira instance URL (e.g., https://jira.company.com)')

@@ -3,7 +3,7 @@
 Since the update script doesn't exist on the server yet, and `/opt/tract` is owned by the `tract` user, run everything with sudo:
 
 ```bash
-ssh reek
+ssh your-server
 
 # Pull latest code and run update (all as root)
 sudo bash -c 'cd /opt/tract/tract && \
@@ -17,7 +17,7 @@ sudo bash -c 'cd /opt/tract/tract && \
 Or step-by-step:
 
 ```bash
-ssh reek
+ssh your-server
 
 # Run all commands as root (staying in one sudo session)
 sudo bash
@@ -36,7 +36,7 @@ exit
 After this first time, future updates are just:
 
 ```bash
-ssh reek
+ssh your-server
 sudo /opt/tract/tract/tract-sync/update-server.sh app
 ```
 

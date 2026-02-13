@@ -1,6 +1,6 @@
-# Arij Federation & Scale
+# Tract Federation & Scale
 
-> How Arij works across teams, repos, and organisational boundaries.
+> How Tract works across teams, repos, and organisational boundaries.
 
 **Version:** 1.0.0
 **Date:** 2026-02-10
@@ -22,9 +22,9 @@
 
 Ticket repos are designed to work in two modes with **zero changes** to the repo itself.
 
-### Standalone Mode (Arij Server)
+### Standalone Mode (Tract Server)
 
-The Arij server clones ticket repos as standalone repositories:
+The Tract server clones ticket repos as standalone repositories:
 
 ```
 arij-server/
@@ -46,11 +46,11 @@ trading-platform/        # code repo
 
 ### Self-Contained Ticket Repos
 
-The ticket repo **must** be self-contained — it carries its own `.arij/` config and all project metadata:
+The ticket repo **must** be self-contained — it carries its own `.tract/` config and all project metadata:
 
 ```
 tickets-tb/
-├── .arij/
+├── .tract/
 │   ├── config.yaml
 │   ├── workflows/
 │   ├── sprints/
@@ -63,10 +63,10 @@ tickets-tb/
 
 This is what makes dual-mode possible. The repo works identically whether cloned standalone or mounted as a submodule.
 
-When used as a submodule, the parent code repo can optionally have its own `.arij/config.yaml` that points at the submodule path:
+When used as a submodule, the parent code repo can optionally have its own `.tract/config.yaml` that points at the submodule path:
 
 ```yaml
-# parent repo .arij/config.yaml (optional)
+# parent repo .tract/config.yaml (optional)
 ticket_submodule: tickets/
 ```
 
@@ -76,7 +76,7 @@ When standalone, it just works — no parent config needed.
 
 ## 2. Two LLM Roles
 
-The same Arij schema supports two fundamentally different operating profiles.
+The same Tract schema supports two fundamentally different operating profiles.
 
 ### Server LLM
 
@@ -167,7 +167,7 @@ repos:
     prefix: APP
 ```
 
-### Arij Server
+### Tract Server
 
 Server config lists all ticket repo URLs to clone and sync:
 
@@ -183,7 +183,7 @@ repos:
 
 ### Discovery Convention
 
-Any repo with `.arij/config.yaml` at its root is an Arij project. No registration needed beyond cloning it.
+Any repo with `.tract/config.yaml` at its root is an Tract project. No registration needed beyond cloning it.
 
 ### Cross-Repo Links
 
@@ -216,20 +216,20 @@ This is a feature. Every other project management tool hides conflict resolution
 
 Some divisions can't even see each other's repos. Different teams have different access levels. Some projects are shared, others are private.
 
-### How Arij Handles This
+### How Tract Handles This
 
-- Each division/team can have their own Arij server with their own repos
+- Each division/team can have their own Tract server with their own repos
 - Cross-division links are **opaque references** — the link exists in the ticket (`ref: FINANCE-042`) but if your workspace doesn't include the FINANCE repo, you can't resolve it. You know it exists. You can't see it.
 - Shared projects (HR/admin tickets like TINT, company-wide agile like APP) live in repos everyone can access
-- Git access control (SSH keys, deploy keys, org permissions) is the security model — Arij adds nothing on top
+- Git access control (SSH keys, deploy keys, org permissions) is the security model — Tract adds nothing on top
 
-### Multiple Arij Servers
+### Multiple Tract Servers
 
-Nothing prevents multiple Arij servers in an organisation:
+Nothing prevents multiple Tract servers in an organisation:
 
 ```
-Division A Arij Server → [tickets-trading, tickets-risk, tickets-shared]
-Division B Arij Server → [tickets-settlement, tickets-ops, tickets-shared]
+Division A Tract Server → [tickets-trading, tickets-risk, tickets-shared]
+Division B Tract Server → [tickets-settlement, tickets-ops, tickets-shared]
 ```
 
 Both see `tickets-shared`. Neither sees the other's private repos. Cross-division links to private repos are opaque. This is exactly how it should work.

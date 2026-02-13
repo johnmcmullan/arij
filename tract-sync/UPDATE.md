@@ -5,7 +5,7 @@
 SSH to server and run as root:
 
 ```bash
-ssh reek
+ssh your-server
 sudo /opt/tract/tract/tract-sync/update-server.sh app
 ```
 
@@ -19,7 +19,7 @@ The script will:
 ## Manual Update (if needed)
 
 ```bash
-ssh reek
+ssh your-server
 
 # Pull latest code
 cd /opt/tract/tract

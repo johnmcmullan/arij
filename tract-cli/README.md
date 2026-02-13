@@ -1,98 +1,232 @@
 # Tract CLI
 
-Command-line tool for working with Tract tickets.
+> Command-line interface for Tract - the developer-friendly Jira alternative
 
 ## Installation
 
 ```bash
-cd tract-cli
-npm install
-npm link  # Makes 'tract' command available globally
+npm install -g @tract/cli
 ```
 
-## Environment Setup
+Or use without installing:
 
 ```bash
-# Set your sync server URL
-export TRACT_SYNC_SERVER=http://tract-server:3100
+npx @tract/cli doctor
+```
 
-# Or add to ~/.bashrc
-echo 'export TRACT_SYNC_SERVER=http://tract-server:3100' >> ~/.bashrc
+## Quick Start
+
+### 1. Check Your Setup
+
+```bash
+tract doctor
+```
+
+This runs health checks and tells you exactly what's missing.
+
+### 2. Clone an Existing Tract Repo
+
+If your team already has Tract set up:
+
+```bash
+git clone ssh://git@server/path/to/tickets.git
+cd tickets
+tract doctor
+```
+
+### 3. Or Bootstrap a New Project
+
+If you're the first person:
+
+```bash
+tract onboard \
+  --jira https://jira.company.com \
+  --project APP \
+  --output ./app-tickets
 ```
 
 ## Commands
 
-### `tract create`
+### `tract doctor`
 
-Create a new ticket (works offline).
+Run health checks and diagnostics.
 
-**Usage:**
-```bash
-tract create APP --title "Fix login bug"
+**What it checks:**
+- Git installation
+- Git repository status
+- Tract config validity
+- Git remote setup
+- Sync server connectivity
+- Common issues
 
-tract create APP \
-  --title "Implement OAuth" \
-  --type story \
-  --priority high \
-  --assignee john.mcmullan \
-  --description "Add OAuth 2.0 support" \
-  --components "Backend,Security" \
-  --labels "auth,oauth"
+**Example output:**
+```
+✓ Git installed (git version 2.39.0)
+✓ Git repository initialized
+✓ Tract config directory exists
+✓ Tract config file valid (Project: APP)
+✓ Issues directory exists (42 tickets)
+⚠ Git remote not configured
+  Fix: git remote add origin <url>
 ```
 
-**Options:**
-- `--title <text>` - Ticket title (required)
-- `--type <type>` - Issue type: bug, task, story, epic (default: task)
-- `--priority <level>` - Priority: trivial, minor, medium, major, critical, blocker (default: medium)
+**When to use:** Anytime something isn't working. Start here.
+
+---
+
+### `tract onboard`
+
+Bootstrap a new Tract project from Jira.
+
+**Required:**
+- `--jira <url>` - Jira instance URL
+- `--project <key>` - Project key (e.g., APP, TB)
+- `--user <username>` OR `JIRA_USERNAME` env var
+- `--token <token>` OR `JIRA_TOKEN` env var
+
+**Optional:**
+- `--output <dir>` - Where to create the repo (default: current directory)
+- `--submodule <path>` - Add as submodule in parent repo
+- `--remote <url>` - Git remote URL
+- `--import-tickets` - Import existing tickets during setup
+- `--limit <n>` - Limit tickets imported (for testing)
+- `--no-git` - Skip git initialization
+
+**Examples:**
+
+**Basic onboarding:**
+```bash
+export JIRA_USERNAME="your.name"
+export JIRA_TOKEN="your-token"
+
+tract onboard \
+  --jira https://jira.company.com \
+  --project APP \
+  --output ./app-tickets \
+  --import-tickets
+```
+
+**As a submodule in your code repo:**
+```bash
+cd ~/code/my-app
+
+tract onboard \
+  --jira https://jira.company.com \
+  --project APP \
+  --submodule tickets \
+  --remote ssh://git@server/tickets.git \
+  --import-tickets
+```
+
+**What it does:**
+1. Creates directory structure (`.tract/`, `issues/`, `worklogs/`)
+2. Generates config from Jira project settings
+3. Optionally imports open tickets
+4. Initializes git repo
+5. Sets up git remote (if provided)
+6. Creates initial commit
+
+---
+
+### `tract create <PROJECT>`
+
+Create a new ticket.
+
+**Required:**
+- `<project>` - Project key (e.g., APP)
+- `--title <text>` - Ticket title
+
+**Optional:**
+- `--type <type>` - Issue type (bug, task, story, etc.) - default: task
+- `--priority <priority>` - Priority (trivial, minor, major, critical, blocker) - default: medium
 - `--assignee <username>` - Assign to user
 - `--description <text>` - Detailed description
-- `--components <list>` - Comma-separated components
+- `--components <list>` - Comma-separated component names
 - `--labels <list>` - Comma-separated labels
-- `--server <url>` - Sync server URL (or use TRACT_SYNC_SERVER env var)
+- `--server <url>` - Sync server URL (or use `TRACT_SYNC_SERVER` env var)
 
-**Offline support:**
-- If Jira is available: Creates ticket immediately, returns real ID (e.g., APP-3350)
-- If Jira is down: Creates temp ID (e.g., APP-TEMP-123), queues for sync
-- Auto-syncs when Jira comes back online
+**Examples:**
 
-### `tract log`
-
-Log time to a ticket.
-
-**Usage:**
 ```bash
-tract log APP-3350 2h "Fixed authentication bug"
-tract log APP-3351 30m "Code review"
-tract log APP-3352 1d "Implemented feature"
+# Simple task
+tract create APP --title "Update README"
+
+# Bug with priority
+tract create APP \
+  --title "Login timeout after 5 minutes" \
+  --type bug \
+  --priority critical \
+  --assignee john.doe \
+  --components "Auth,Frontend"
+
+# Story with description
+tract create APP \
+  --title "Implement OAuth SSO" \
+  --type story \
+  --description "Users should be able to log in via Google/GitHub" \
+  --labels "security,auth"
 ```
 
+**Requires:** `TRACT_SYNC_SERVER` environment variable or `--server` option
+
+---
+
+### `tract log <ISSUE> <TIME> [COMMENT]`
+
+Log time to an issue.
+
 **Arguments:**
-- `<issue>` - Issue key (e.g., APP-3350)
-- `<time>` - Time spent (e.g., 2h, 30m, 1d, 1.5h)
+- `<issue>` - Issue key (e.g., APP-1234)
+- `<time>` - Time spent (e.g., 2h, 30m, 1d, 1w)
 - `[comment]` - Work description (optional)
 
-**Options:**
+**Optional:**
 - `--server <url>` - Sync server URL
 - `--author <name>` - Author name (defaults to git user.name)
 - `--started <datetime>` - Start time (ISO 8601, defaults to now)
 
-**Time formats:**
-- `2h` - 2 hours
-- `30m` - 30 minutes
-- `1d` - 1 day (8 hours)
-- `1.5h` - 1.5 hours
+**Examples:**
 
-### `tract timesheet`
+```bash
+# Log 2 hours
+tract log APP-1234 2h "Fixed authentication bug"
 
-View your timesheet.
+# Log with custom author
+tract log APP-1234 30m "Code review" --author jane.doe
 
-**Usage:**
+# Log with specific start time
+tract log APP-1234 1h "Meeting" --started "2026-02-13T10:00:00Z"
+```
+
+**Time format examples:**
+- `30m` = 30 minutes
+- `2h` = 2 hours
+- `1d` = 1 day (8 hours)
+- `1w` = 1 week (40 hours)
+
+**Requires:** `TRACT_SYNC_SERVER` environment variable or `--server` option
+
+---
+
+### `tract timesheet [AUTHOR]`
+
+View timesheet entries.
+
+**Arguments:**
+- `[author]` - Author name (optional, defaults to git user.name)
+
+**Optional:**
+- `--date <date>` - Specific date (YYYY-MM-DD)
+- `--week [week]` - ISO week (e.g., 2026-W07, or current week if no value)
+- `--month <month>` - Month (YYYY-MM)
+- `--format <format>` - Output format: text, json, csv (default: text)
+- `--server <url>` - Sync server URL
+
+**Examples:**
+
 ```bash
 # Today's timesheet
 tract timesheet
-
-# Specific date
-tract timesheet --date 2026-02-12
 
 # This week
 tract timesheet --week
@@ -100,132 +234,214 @@ tract timesheet --week
 # Specific week
 tract timesheet --week 2026-W07
 
-# This month
+# Specific month
 tract timesheet --month 2026-02
 
-# Different author
-tract timesheet john.doe
+# Another user's timesheet
+tract timesheet john.doe --week
 
-# Export formats
-tract timesheet --format csv > timesheet.csv
-tract timesheet --format json > timesheet.json
+# Export as CSV
+tract timesheet --month 2026-02 --format csv > february.csv
 ```
 
-**Options:**
-- `[author]` - Author name (defaults to git user.name)
-- `--server <url>` - Sync server URL
-- `--date <date>` - Specific date (YYYY-MM-DD)
-- `--week [week]` - ISO week (e.g., 2026-W07, or current week if no value)
-- `--month <month>` - Month (YYYY-MM)
-- `--format <format>` - Output format: text, json, csv (default: text)
+**Requires:** `TRACT_SYNC_SERVER` environment variable or `--server` option
 
-**Output:**
-```
-Timesheet for john.mcmullan (2026-02-12)
+---
 
-APP-3350  2.0h  Fixed authentication bug
-APP-3351  0.5h  Code review
-APP-3352  4.0h  Implemented OAuth flow
+### `tract worklogs <ISSUE>`
 
-Total: 6.5h ⚠️ (1.5h short of 8h)
-```
+View all worklog entries for a specific issue.
 
-### `tract worklogs`
+**Arguments:**
+- `<issue>` - Issue key (e.g., APP-1234)
 
-View worklog entries for a specific issue.
-
-**Usage:**
-```bash
-tract worklogs APP-3350
-```
-
-**Options:**
+**Optional:**
 - `--server <url>` - Sync server URL
 
-**Output:**
-```
-Worklogs for APP-3350
-
-2026-02-12 09:00  john.mcmullan  2.0h  Fixed authentication bug
-2026-02-11 14:00  sarah.jones    1.5h  Code review
-2026-02-10 10:00  john.mcmullan  4.0h  Initial implementation
-
-Total logged: 7.5h
-```
-
-## LLM Usage
-
-Tract is designed to be used through LLMs. Instead of memorizing commands, talk to your LLM:
-
-**Instead of:**
-```bash
-tract create APP --title "Fix login timeout" --type bug --priority high --description "..."
-```
-
-**Just say:**
-```
-"Create a ticket for the login timeout issue. Make it high priority."
-```
-
-**Your LLM will:**
-1. Read SCHEMA.md to understand the system
-2. Extract details from your conversation
-3. Run the appropriate command
-4. Tell you what it did
-
-## Working with Tickets
-
-### Edit Directly
-
-Tickets are markdown files. Edit them directly:
+**Example:**
 
 ```bash
-vim issues/APP-3350.md
-git commit -am "Update APP-3350: Add acceptance criteria"
-git push  # Auto-syncs to Jira via webhook
+tract worklogs APP-1234
 ```
 
-### Bulk Operations
+**Requires:** `TRACT_SYNC_SERVER` environment variable or `--server` option
 
-Use standard Unix tools:
+---
+
+### `tract import`
+
+Import tickets from Jira into an existing Tract repo.
+
+**Optional:**
+- `--tract <dir>` - Tract repo directory (default: current)
+- `--user <username>` - Jira username (or `JIRA_USERNAME` env var)
+- `--token <token>` - Jira API token (or `JIRA_TOKEN` env var)
+- `--status <status>` - Import tickets with this status (default: open, or "all")
+- `--limit <n>` - Limit number of tickets
+- `--jql <query>` - Custom JQL query (overrides --status)
+- `--commit` - Auto-commit imported tickets
+
+**Examples:**
 
 ```bash
-# Update all tickets in sprint 6 to sprint 7
-sed -i 's/sprint: 6/sprint: 7/' issues/APP-*.md
-git commit -am "Move tickets to sprint 7"
-git push
+# Import all open tickets
+tract import
 
-# Find all high-priority bugs
-grep -l "priority: high" issues/*.md | xargs grep "type: bug"
+# Import only "In Progress" tickets
+tract import --status "In Progress"
 
-# List tickets assigned to you
-grep -l "assignee: $(git config user.name)" issues/*.md
+# Import using custom JQL
+tract import --jql "project = APP AND created > -7d"
+
+# Import and commit
+tract import --commit
 ```
+
+---
+
+### `tract map-components`
+
+Use an LLM to map Jira components to code directory paths.
+
+**Optional:**
+- `--tract <dir>` - Tract repo directory (default: current)
+- `--code <dir>` - Code repo root to scan (default: parent directory)
+- `--confidence <percent>` - Confidence threshold for auto-accept (default: 80)
+- `--no-interactive` - Skip interactive review (auto-accept all)
+
+**Example:**
+
+```bash
+cd ~/code/my-app/tickets
+tract map-components --code .. --confidence 90
+```
+
+**What it does:**
+1. Scans your code directory structure
+2. Uses LLM to match Jira component names to directories
+3. Writes mappings to `.tract/components.yaml`
+4. Interactive review (unless `--no-interactive`)
+
+---
+
+## Environment Variables
+
+### `TRACT_SYNC_SERVER`
+
+URL of the Tract sync service (required for create/log/timesheet commands).
+
+**Example:**
+```bash
+export TRACT_SYNC_SERVER=http://tract-server:3100
+```
+
+Add to `~/.bashrc` or `~/.zshrc` to persist.
+
+### `JIRA_USERNAME` / `JIRA_TOKEN`
+
+Jira credentials for onboarding and importing.
+
+**Example:**
+```bash
+export JIRA_USERNAME="your.name"
+export JIRA_TOKEN="your-api-token"
+```
+
+**How to get a token:**
+1. Go to Jira → Settings → Personal Access Tokens
+2. Create new token
+3. Copy and save in environment variable
+
+---
+
+## Troubleshooting
+
+### "TRACT_SYNC_SERVER not set"
+
+**Solution:** Set the environment variable or use `--server` option:
+
+```bash
+export TRACT_SYNC_SERVER=http://tract-server:3100
+```
+
+Or:
+```bash
+tract create APP --title "Test" --server http://tract-server:3100
+```
+
+### "Not a git repository"
+
+**Solution:** Navigate to your Tract repo or run `tract onboard`:
+
+```bash
+cd path/to/tickets
+# or
+tract onboard --jira <url> --project <KEY>
+```
+
+### ".tract/ directory missing"
+
+**Solution:** Run `tract onboard` to bootstrap the repository.
+
+### "Could not reach sync server"
+
+**Checks:**
+1. Is the service running? `ssh tract-server systemctl status tract-sync`
+2. Is the URL correct? `curl http://tract-server:3100/health`
+3. Are you on the right network/VPN?
+
+**Offline work:** You can still create/edit tickets locally. Edit markdown files in `issues/` directory.
+
+### "Git user not configured"
+
+**Solution:** Configure git user:
+
+```bash
+git config user.name "Your Name"
+git config user.email "you@company.com"
+```
+
+---
+
+## For LLMs
+
+If you're an LLM helping a developer:
+
+1. **Read `.tract/SCHEMA.md`** in the ticket repository for complete documentation
+2. Use `tract doctor` to diagnose issues
+3. Prefer `tract create` and `tract log` over manual file editing (when server is available)
+4. For offline work, edit markdown files directly in `issues/`
+
+---
 
 ## Development
 
-### Running Tests
+**Run from source:**
+
+```bash
+git clone https://github.com/johnmcmullan/tract.git
+cd tract/tract-cli
+npm install
+npm link  # Makes 'tract' command available globally
+
+# Test
+tract doctor
+```
+
+**Run tests:**
 
 ```bash
 npm test
 ```
 
-### Local Development
+---
 
-```bash
-# Link for development
-npm link
+## License
 
-# Make changes
-vim bin/tract.js
+MIT
 
-# Test immediately
-tract create APP --title "Test"
-```
+## Support
 
-## See Also
-
-- [CREATE-GUIDE.md](../tract-sync/CREATE-GUIDE.md) - Detailed ticket creation guide
-- [WORKLOG-GUIDE.md](../tract-sync/WORKLOG-GUIDE.md) - Time tracking guide
-- [SCHEMA.md](../.tract/SCHEMA.md) - Complete specification (for LLMs)
-- [README.md](../README.md) - Project overview and philosophy
+- **Issues:** https://github.com/johnmcmullan/tract/issues
+- **Docs:** https://github.com/johnmcmullan/tract
+- **Need help?** Run `tract doctor` first!

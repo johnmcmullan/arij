@@ -80,7 +80,7 @@ npm install
 Set environment variables:
 
 ```bash
-export JIRA_URL="https://jira.orcsoftware.com"
+export JIRA_URL="https://jira.company.com"
 export JIRA_USERNAME="your-username"
 export JIRA_PASSWORD="your-password-or-token"
 export TRACT_REPO_PATH="/path/to/tract/repo"
@@ -94,7 +94,7 @@ Or create `.env` file:
 
 ```bash
 cat > .env << EOF
-JIRA_URL=https://jira.orcsoftware.com
+JIRA_URL=https://jira.company.com
 JIRA_USERNAME=john.mcmullan
 JIRA_PASSWORD=your-token
 TRACT_REPO_PATH=/home/john.mcmullan/work/apps/tickets
@@ -263,7 +263,7 @@ tail -f /var/log/tract-sync.log
 1. Check service is running: `systemctl status tract-sync`
 2. Check logs: `journalctl -u tract-sync -n 100`
 3. Test webhook manually: `curl -X POST http://localhost:3000/webhook/git -d '{"changedFiles":[]}'`
-4. Verify Jira credentials: `curl -u username:password https://jira.orcsoftware.com/rest/api/2/myself`
+4. Verify Jira credentials: `curl -u username:password https://jira.company.com/rest/api/2/myself`
 
 **Infinite loops:**
 - Check `[tract-sync]` marker is in commit messages

@@ -9,7 +9,7 @@ async function log(issue, time, comment, options) {
     if (!serverUrl) {
       console.error(chalk.red('❌ Sync server URL required'));
       console.error(chalk.gray('Set TRACT_SYNC_SERVER env var or use --server option'));
-      console.error(chalk.gray('Example: export TRACT_SYNC_SERVER=http://reek:3100'));
+      console.error(chalk.gray('Example: export TRACT_SYNC_SERVER=http://tract-server:3100'));
       process.exit(1);
     }
 
@@ -54,9 +54,17 @@ async function log(issue, time, comment, options) {
   } catch (error) {
     if (error.response) {
       console.error(chalk.red(`\n❌ Server error: ${error.response.data.error || error.message}`));
+      if (error.response.status === 404) {
+        console.error(chalk.yellow(`\n💡 Tip: Ticket ${issue} might not exist`));
+        console.error(chalk.gray(`   Check issue key is correct (e.g., APP-1234)`));
+      }
     } else if (error.request) {
       console.error(chalk.red(`\n❌ Could not reach sync server at ${serverUrl}`));
-      console.error(chalk.gray('   Is the service running?'));
+      console.error(chalk.yellow(`\n💡 Troubleshooting:`));
+      console.error(chalk.gray(`   1. Is the service running? ssh tract-server systemctl status tract-sync`));
+      console.error(chalk.gray(`   2. Is the URL correct? Try: curl ${serverUrl}/health`));
+      console.error(chalk.gray(`   3. Are you on the right network/VPN?`));
+      console.error(chalk.gray(`\n   For offline time logging, edit worklogs/YYYY-MM.jsonl directly`));
     } else {
       console.error(chalk.red(`\n❌ Error: ${error.message}`));
     }
