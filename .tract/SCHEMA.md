@@ -5,7 +5,7 @@
 **Version:** 1.0.0
 **Date:** 2026-02-09
 
-This document is the complete reference for operating an Arij project management system. An LLM reading this document should be able to create, query, update, and manage all aspects of the system using only filesystem operations and git.
+This document is the complete reference for operating a Tract project management system. An LLM reading this document should be able to create, query, update, and manage all aspects of the system using only filesystem operations and git.
 
 ---
 
@@ -38,7 +38,7 @@ This document is the complete reference for operating an Arij project management
 
 Ticket repos work in two modes with zero changes. See `FEDERATION.md` for full details.
 
-**Standalone mode** — ticket repo cloned on its own (Arij server or developer):
+**Standalone mode** — ticket repo cloned on its own (Tract server or developer):
 
 ```
 tickets-tb/                      # self-contained ticket repo
@@ -925,13 +925,13 @@ TB-042, TB-055: refactor socket configuration for all FIX sessions
 
 ## 18. Distribution & Submodules
 
-Git submodules are the **primary distribution mechanism** for Arij at scale. See `FEDERATION.md` for the full federation design.
+Git submodules are the **primary distribution mechanism** for Tract at scale. See `FEDERATION.md` for the full federation design.
 
 ### Dual-Mode Ticket Repos
 
 Ticket repos are self-contained and work in two modes with zero changes:
 
-**Standalone mode** (Arij server clones them directly):
+**Standalone mode** (Tract server clones them directly):
 
 ```
 tract-server/
@@ -963,7 +963,7 @@ trading-platform/        # code repo
 ### Benefits of Standalone Mode
 
 - **Simpler setup** — just clone and go
-- **Server-friendly** — Arij server clones repos without needing code repos
+- **Server-friendly** — Tract server clones repos without needing code repos
 - **Cross-project queries** — server sees all ticket repos in one place
 
 ### Excluding Tickets from Archives
