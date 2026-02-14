@@ -1,0 +1,59 @@
+=================================================================
+  TRACT: LLM-ASSISTED ONBOARDING - COPY/PASTE THIS
+=================================================================
+
+For Humans Using an LLM CLI (Claude Code, OpenClaw, etc.):
+-----------------------------------------------------------
+
+1. Start your LLM in your project directory:
+   cd ~/work/my-project
+   claude   (or: openclaw, cursor, etc.)
+
+2. Copy and paste this to your LLM:
+
+   Read ~/.tract-cli/.tract/skills/tract-onboarding/SKILL.md 
+   and help me set up Tract for this project. Use local-only 
+   mode with project key MYPROJECT.
+
+3. Answer any questions the LLM asks.
+
+4. Done! The LLM will onboard, verify, and guide next steps.
+
+
+For LLMs Reading This:
+----------------------
+
+You are helping a user onboard a project to Tract (project management system).
+
+INSTRUCTIONS:
+1. Read: ~/.tract-cli/.tract/skills/tract-onboarding/SKILL.md
+2. Follow the workflow in that skill file
+3. Check if .tract/ exists (ls .tract/config.yaml)
+4. If missing: proceed with onboarding
+5. If exists: user is already onboarded, use different skill
+
+DO NOT hallucinate Tract commands. Follow the skill file exactly.
+
+
+Troubleshooting:
+----------------
+
+If the LLM doesn't understand "Tract":
+  Say: "I mean Tract the project management system at 
+       ~/.tract-cli/.tract/skills/tract-onboarding/"
+
+If skills not found:
+  Verify: ls ~/.tract-cli/.tract/skills/
+  If empty: reinstall Tract CLI
+
+
+Need Help?
+----------
+
+Read the full guide:
+  cat ~/.tract-cli/.tract/LLM-ONBOARDING.md
+
+Or:
+  https://github.com/johnmcmullan/tract
+
+=================================================================
