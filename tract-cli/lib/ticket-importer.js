@@ -446,6 +446,94 @@ class TicketImporter {
     
     return converted.trim();
   }
+
+  async normalizeLabels(issuesDir) {
+    const files = fs.readdirSync(issuesDir).filter(f => f.endsWith('.md'));
+    
+    // Load label mappings from config
+    const labelMappings = this.config.labels?.mappings || {};
+    const labelCase = this.config.labels?.case || 'lowercase';
+    
+    let totalNormalized = 0;
+    
+    for (const file of files) {
+      const filePath = path.join(issuesDir, file);
+      
+      try {
+        // Read ticket
+        const content = fs.readFileSync(filePath, 'utf8');
+        const parts = content.split('---\n');
+        if (parts.length < 3) continue;
+        
+        const frontmatter = yaml.load(parts[1]);
+        
+        if (!frontmatter.labels || !Array.isArray(frontmatter.labels)) {
+          continue;
+        }
+        
+        const originalLabels = [...frontmatter.labels];
+        const normalizedLabels = frontmatter.labels.map(label => {
+          // Apply explicit mappings first
+          if (labelMappings[label]) {
+            return labelMappings[label];
+          }
+          
+          // Check case-insensitive mappings
+          const lowerLabel = label.toLowerCase();
+          for (const [key, value] of Object.entries(labelMappings)) {
+            if (key.toLowerCase() === lowerLabel) {
+              return value;
+            }
+          }
+          
+          // Apply case normalization
+          switch (labelCase) {
+            case 'lowercase':
+              return label.toLowerCase();
+            case 'uppercase':
+              return label.toUpperCase();
+            case 'title':
+              return label.charAt(0).toUpperCase() + label.slice(1).toLowerCase();
+            default:
+              return label;
+          }
+        });
+        
+        // Remove duplicates (case-insensitive)
+        const uniqueLabels = [];
+        const seen = new Set();
+        for (const label of normalizedLabels) {
+          const key = label.toLowerCase();
+          if (!seen.has(key)) {
+            seen.add(key);
+            uniqueLabels.push(label);
+          }
+        }
+        
+        // Sort alphabetically
+        uniqueLabels.sort();
+        
+        // Check if anything changed
+        if (JSON.stringify(originalLabels) !== JSON.stringify(uniqueLabels)) {
+          frontmatter.labels = uniqueLabels;
+          totalNormalized++;
+          
+          // Rebuild file
+          const newYaml = yaml.dump(frontmatter, { lineWidth: -1 });
+          const newContent = `---\n${newYaml}---\n${parts.slice(2).join('---\n')}`;
+          
+          fs.writeFileSync(filePath, newContent, 'utf8');
+        }
+      } catch (error) {
+        console.log(chalk.yellow(`    Warning: Could not normalize labels in ${file}: ${error.message}`));
+        continue;
+      }
+    }
+    
+    if (totalNormalized > 0) {
+      console.log(chalk.gray(`    Normalized labels in ${totalNormalized} tickets`));
+    }
+  }
 }
 
 module.exports = TicketImporter;
