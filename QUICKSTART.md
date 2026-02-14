@@ -16,7 +16,9 @@ curl -fsSL https://raw.githubusercontent.com/johnmcmullan/tract/master/install.s
 git clone https://github.com/johnmcmullan/tract.git ~/.tract-cli
 cd ~/.tract-cli/tract-cli
 npm install
-sudo ln -s ~/.tract-cli/tract-cli/bin/tract.js /usr/local/bin/tract
+mkdir -p ~/.local/bin
+ln -s ~/.tract-cli/tract-cli/bin/tract.js ~/.local/bin/tract
+export PATH="$HOME/.local/bin:$PATH"  # Add to ~/.bashrc to make permanent
 ```
 
 ## Clone Existing Repo (Your Team Already Has Tract)

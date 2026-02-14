@@ -8,7 +8,7 @@ set -e
 
 REPO_URL="https://github.com/johnmcmullan/tract.git"
 INSTALL_DIR="${TRACT_INSTALL_DIR:-$HOME/.tract-cli}"
-BIN_DIR="${TRACT_BIN_DIR:-/usr/local/bin}"
+BIN_DIR="${TRACT_BIN_DIR:-$HOME/.local/bin}"
 
 # Colors
 RED='\033[0;31m'
@@ -68,17 +68,59 @@ echo -e "${BLUE}➜${NC} Installing dependencies..."
 cd "$INSTALL_DIR/tract-cli"
 npm install --silent
 
-# Create symlink (check if we need sudo)
-echo -e "${BLUE}➜${NC} Creating symlink..."
+# Create symlink
+echo -e "${BLUE}➜${NC} Setting up command..."
 
 TRACT_BIN="$INSTALL_DIR/tract-cli/bin/tract.js"
 SYMLINK_PATH="$BIN_DIR/tract"
 
-if [ -w "$BIN_DIR" ]; then
-    ln -sf "$TRACT_BIN" "$SYMLINK_PATH"
-else
-    echo -e "${YELLOW}⚠${NC}  Need sudo to write to $BIN_DIR"
-    sudo ln -sf "$TRACT_BIN" "$SYMLINK_PATH"
+# Ensure ~/.local/bin exists
+mkdir -p "$BIN_DIR"
+
+# Create symlink
+ln -sf "$TRACT_BIN" "$SYMLINK_PATH"
+echo -e "${GREEN}✓${NC} Created symlink: $SYMLINK_PATH"
+
+# Check if ~/.local/bin is in PATH
+if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
+    echo
+    echo -e "${YELLOW}⚠${NC}  $BIN_DIR is not in your PATH"
+    echo -e "${BLUE}➜${NC} Adding to PATH..."
+    
+    # Detect shell config file
+    SHELL_CONFIG=""
+    if [ -n "$BASH_VERSION" ]; then
+        SHELL_CONFIG="$HOME/.bashrc"
+    elif [ -n "$ZSH_VERSION" ]; then
+        SHELL_CONFIG="$HOME/.zshrc"
+    else
+        # Try to guess
+        if [ -f "$HOME/.bashrc" ]; then
+            SHELL_CONFIG="$HOME/.bashrc"
+        elif [ -f "$HOME/.zshrc" ]; then
+            SHELL_CONFIG="$HOME/.zshrc"
+        fi
+    fi
+    
+    if [ -n "$SHELL_CONFIG" ] && [ -f "$SHELL_CONFIG" ]; then
+        # Check if already added
+        if ! grep -q "export PATH=\"\$HOME/.local/bin:\$PATH\"" "$SHELL_CONFIG"; then
+            echo "" >> "$SHELL_CONFIG"
+            echo "# Added by Tract installer" >> "$SHELL_CONFIG"
+            echo "export PATH=\"\$HOME/.local/bin:\$PATH\"" >> "$SHELL_CONFIG"
+            echo -e "${GREEN}✓${NC} Added to $SHELL_CONFIG"
+            echo -e "${YELLOW}ℹ${NC}  Run: ${BLUE}source $SHELL_CONFIG${NC} or restart your shell"
+        else
+            echo -e "${GREEN}✓${NC} Already in $SHELL_CONFIG"
+        fi
+    else
+        echo -e "${YELLOW}⚠${NC}  Could not detect shell config file"
+        echo -e "${YELLOW}➜${NC} Add this to your shell config manually:"
+        echo -e "    ${BLUE}export PATH=\"\$HOME/.local/bin:\$PATH\"${NC}"
+    fi
+    
+    # Add to current session
+    export PATH="$HOME/.local/bin:$PATH"
 fi
 
 # Verify installation
