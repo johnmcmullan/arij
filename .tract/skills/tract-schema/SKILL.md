@@ -23,6 +23,12 @@ Understand and operate Tract's data model for ticket management. This skill enab
 
 ## Core Workflow
 
+### Step 0: Fundamental Principle
+
+**Tickets are just markdown files with YAML frontmatter.**
+
+If you can't run `tract` commands (offline, no exec access, etc.), you can ALWAYS create/edit tickets by writing files directly to `issues/`. This is not a workaround - it's the core design.
+
 ### Step 1: Verify You're in a Tract Project
 
 Before any ticket operations:
@@ -38,9 +44,17 @@ If you're in a subdirectory: Tract searches parent dirs (like git does).
 
 ### Step 2: Creating Tickets
 
-**Method 1: Direct File Creation (Local-Only Projects)**
+**Choose based on what's available:**
 
-**Note:** For local-only projects (no sync server), creating markdown files directly is the primary method. This is Tract's philosophy - tickets are just files.
+**Method 1: Using tract CLI (Preferred when available)**
+```bash
+tract create <PROJECT> --title "Title" --type task --priority high
+```
+Works offline now (bug fixed). Creates file + commits to git.
+
+**Method 2: Direct File Creation (Always works, no tools required)**
+
+If you can't run commands, write the file directly. This is Tract's core philosophy - tickets are just files.
 
 ```bash
 # Create next ticket ID (e.g., EMACS-1)
@@ -470,7 +484,38 @@ Load these on-demand for complete details:
 - **`references/git-conventions.md`** - Commit message format, workflow patterns
 - **`references/config-schema.md`** - `.tract/config.yaml` complete spec
 
+## Fallback: No Command Execution Available
+
+**If you (the LLM) cannot execute commands:**
+
+1. **For ticket creation:** Write markdown files directly
+   ```markdown
+   Create file: issues/PROJECT-ID.md
+   
+   Content:
+   ---
+   id: PROJECT-ID
+   title: Title here
+   type: task
+   status: backlog
+   created: 2026-02-14T15:00:00Z
+   ---
+   
+   # Description
+   Details here.
+   ```
+
+2. **For updates:** Edit the markdown file
+3. **For git commits:** Tell user: "Please commit this: git add issues/PROJECT-ID.md && git commit -m 'Create PROJECT-ID'"
+
+**Remember:** Tickets are files. If you can't run tools, you can still help by showing the user what files to create/edit.
+
 ## Troubleshooting
+
+**Can't run tract commands?**
+- Fall back to direct file creation (see above)
+- Show user the file content to create
+- Tickets are just markdown - no tools required
 
 **Ticket not syncing to Jira?**
 - Check `TRACT_SYNC_SERVER` is set
