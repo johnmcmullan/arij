@@ -49,14 +49,17 @@ echo
 # Clone or update repo
 if [ -d "$INSTALL_DIR" ]; then
     echo -e "${YELLOW}⚠${NC}  Tract CLI already installed at $INSTALL_DIR"
-    read -p "Update to latest version? (y/N) " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        echo -e "${BLUE}➜${NC} Updating Tract CLI..."
-        cd "$INSTALL_DIR"
-        git pull origin master
+    echo -e "${BLUE}➜${NC} Updating to latest version..."
+    cd "$INSTALL_DIR"
+    git fetch origin master >/dev/null 2>&1
+    LOCAL=$(git rev-parse HEAD)
+    REMOTE=$(git rev-parse origin/master)
+    
+    if [ "$LOCAL" = "$REMOTE" ]; then
+        echo -e "${GREEN}✓${NC} Already up to date"
     else
-        echo -e "${YELLOW}⊘${NC} Skipping update"
+        git pull origin master
+        echo -e "${GREEN}✓${NC} Updated to latest"
     fi
 else
     echo -e "${BLUE}➜${NC} Installing Tract CLI to $INSTALL_DIR..."
