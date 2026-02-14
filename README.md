@@ -46,6 +46,38 @@ Tract is a project management system that treats tickets as **markdown files** i
 - **Building LLM integration?** → `.tract/SCHEMA.md` (in your ticket repo)
 - **Debugging issues?** → Run `tract doctor`
 
+## Installation
+
+### One-Line Install (Recommended)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/YOUR-USERNAME/tract/main/install.sh | bash
+```
+
+**That's it.** The installer:
+- Checks dependencies (node, npm, git)
+- Clones the repo to `~/.tract-cli`
+- Installs npm packages
+- Creates `/usr/local/bin/tract` symlink
+- Verifies everything works
+
+After install, you'll have the `tract` command available everywhere.
+
+### Manual Install
+
+```bash
+git clone https://github.com/YOUR-USERNAME/tract.git ~/.tract-cli
+cd ~/.tract-cli/tract-cli
+npm install
+sudo ln -s ~/.tract-cli/tract-cli/bin/tract.js /usr/local/bin/tract
+```
+
+### Using npm (when published)
+
+```bash
+npm install -g @tract/cli
+```
+
 ## Quick Start
 
 ### Talk to Your LLM (Recommended)

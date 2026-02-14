@@ -4,8 +4,19 @@
 
 ## Install
 
+**One command:**
+
 ```bash
-npm install -g @tract/cli
+curl -fsSL https://raw.githubusercontent.com/YOUR-USERNAME/tract/main/install.sh | bash
+```
+
+**Or manually:**
+
+```bash
+git clone https://github.com/YOUR-USERNAME/tract.git ~/.tract-cli
+cd ~/.tract-cli/tract-cli
+npm install
+sudo ln -s ~/.tract-cli/tract-cli/bin/tract.js /usr/local/bin/tract
 ```
 
 ## Clone Existing Repo (Your Team Already Has Tract)
