@@ -1,12 +1,12 @@
 #!/bin/bash
 #
 # Tract CLI Installer
-# Usage: curl -fsSL https://raw.githubusercontent.com/YOUR-USERNAME/tract/main/install.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/johnmcmullan/tract/master/install.sh | bash
 #
 
 set -e
 
-REPO_URL="https://github.com/YOUR-USERNAME/tract.git"
+REPO_URL="https://github.com/johnmcmullan/tract.git"
 INSTALL_DIR="${TRACT_INSTALL_DIR:-$HOME/.tract-cli}"
 BIN_DIR="${TRACT_BIN_DIR:-/usr/local/bin}"
 
@@ -54,7 +54,7 @@ if [ -d "$INSTALL_DIR" ]; then
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         echo -e "${BLUE}➜${NC} Updating Tract CLI..."
         cd "$INSTALL_DIR"
-        git pull origin main
+        git pull origin master
     else
         echo -e "${YELLOW}⊘${NC} Skipping update"
     fi
@@ -108,7 +108,7 @@ if command -v tract >/dev/null 2>&1; then
     echo "  4. Start creating tickets:"
     echo -e "     ${YELLOW}tract create APP --title \"My first ticket\"${NC}"
     echo
-    echo -e "${BLUE}Documentation:${NC} https://github.com/YOUR-USERNAME/tract"
+    echo -e "${BLUE}Documentation:${NC} https://github.com/johnmcmullan/tract"
     echo
 else
     echo -e "${RED}✗${NC} Installation failed - tract command not found in PATH"

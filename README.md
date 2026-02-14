@@ -51,7 +51,7 @@ Tract is a project management system that treats tickets as **markdown files** i
 ### One-Line Install (Recommended)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/YOUR-USERNAME/tract/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/johnmcmullan/tract/master/install.sh | bash
 ```
 
 **That's it.** The installer:
@@ -66,7 +66,7 @@ After install, you'll have the `tract` command available everywhere.
 ### Manual Install
 
 ```bash
-git clone https://github.com/YOUR-USERNAME/tract.git ~/.tract-cli
+git clone https://github.com/johnmcmullan/tract.git ~/.tract-cli
 cd ~/.tract-cli/tract-cli
 npm install
 sudo ln -s ~/.tract-cli/tract-cli/bin/tract.js /usr/local/bin/tract

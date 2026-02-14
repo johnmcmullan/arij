@@ -7,13 +7,13 @@
 **One command:**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/YOUR-USERNAME/tract/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/johnmcmullan/tract/master/install.sh | bash
 ```
 
 **Or manually:**
 
 ```bash
-git clone https://github.com/YOUR-USERNAME/tract.git ~/.tract-cli
+git clone https://github.com/johnmcmullan/tract.git ~/.tract-cli
 cd ~/.tract-cli/tract-cli
 npm install
 sudo ln -s ~/.tract-cli/tract-cli/bin/tract.js /usr/local/bin/tract
