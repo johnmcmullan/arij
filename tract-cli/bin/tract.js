@@ -21,9 +21,10 @@ program
 
 program
   .command('onboard')
-  .description('Bootstrap a new Tract project from Jira')
-  .requiredOption('--jira <url>', 'Jira instance URL (e.g., https://jira.company.com)')
-  .requiredOption('--project <key>', 'Jira project key (e.g., APP, TB)')
+  .description('Bootstrap a new Tract project (with Jira sync or local-only)')
+  .requiredOption('--project <key>', 'Project key (e.g., APP, TB)')
+  .option('--jira <url>', 'Jira instance URL (e.g., https://jira.company.com)')
+  .option('--local', 'Create local-only project (no Jira sync)')
   .option('--user <username>', 'Jira username (or use JIRA_USERNAME env var)')
   .option('--token <token>', 'Jira API token (or use JIRA_TOKEN env var)')
   .option('--password <password>', 'Jira password (or use JIRA_PASSWORD env var)')

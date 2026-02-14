@@ -12,6 +12,7 @@ async function onboard(options) {
   console.log(chalk.bold.cyan('\n🚀 Tract Onboarding\n'));
 
   // Validate inputs
+  const isLocal = options.local;
   const jiraUrl = options.jira;
   const projectKey = options.project.toUpperCase();
   let outputDir = path.resolve(options.output);
@@ -20,6 +21,77 @@ async function onboard(options) {
   const isSubmoduleMode = !!submodulePath;
   const importTickets = options.importTickets;
   const ticketLimit = options.limit ? parseInt(options.limit) : null;
+
+  // Local-only mode: no Jira required
+  if (isLocal) {
+    console.log(chalk.bold.cyan('📦 Local-Only Mode\n'));
+    console.log(chalk.gray(`Creating local Tract project without Jira sync...\n`));
+    
+    // Create directory structure
+    if (!fs.existsSync(outputDir)) {
+      fs.mkdirSync(outputDir, { recursive: true });
+    }
+    
+    const issuesDir = path.join(outputDir, 'issues');
+    const worklogsDir = path.join(outputDir, 'worklogs');
+    const tractDir = path.join(outputDir, '.tract');
+    
+    fs.mkdirSync(issuesDir, { recursive: true });
+    fs.mkdirSync(worklogsDir, { recursive: true });
+    fs.mkdirSync(tractDir, { recursive: true });
+    
+    // Create minimal config.yaml
+    const configPath = path.join(tractDir, 'config.yaml');
+    const configContent = `# Tract Configuration
+# Project: ${projectKey}
+
+project: ${projectKey}
+jira:
+  url: null  # Add Jira URL later to enable sync
+  project: ${projectKey}
+
+sync:
+  enabled: false  # Set to true when Jira is configured
+`;
+    fs.writeFileSync(configPath, configContent);
+    
+    // Create minimal SCHEMA.md
+    const schemaPath = path.join(tractDir, 'SCHEMA.md');
+    const schemaContent = `# Tract Schema - ${projectKey}
+
+Local-only project. Add Jira configuration to .tract/config.yaml to enable sync.
+
+See: https://github.com/johnmcmullan/tract
+`;
+    fs.writeFileSync(schemaPath, schemaContent);
+    
+    console.log(chalk.green('✓ Project structure created'));
+    
+    // Initialize git
+    try {
+      if (!fs.existsSync(path.join(outputDir, '.git'))) {
+        execSync('git init', { cwd: outputDir, stdio: 'pipe' });
+      }
+      execSync('git add .', { cwd: outputDir, stdio: 'pipe' });
+      execSync(`git commit -m "Initial commit: ${projectKey} (local-only)"`, { 
+        cwd: outputDir, 
+        stdio: 'pipe' 
+      });
+      console.log(chalk.green('✓ Git repository initialized'));
+    } catch (err) {
+      console.log(chalk.yellow('⚠ Git initialization failed (non-fatal)'));
+    }
+    
+    console.log(chalk.bold.green('\n✅ Local project created!\n'));
+    console.log(chalk.bold('Next Steps:\n'));
+    console.log(chalk.gray('   # Create your first ticket:'));
+    console.log(chalk.gray(`   cd ${path.relative(process.cwd(), outputDir)}`));
+    console.log(chalk.gray(`   tract create ${projectKey} --title "My first ticket"\n`));
+    console.log(chalk.gray('   # To enable Jira sync later:'));
+    console.log(chalk.gray('   # Edit .tract/config.yaml and add Jira URL\n'));
+    
+    return;
+  }
 
   // In submodule mode, we create the ticket repo in a temp location first
   let ticketRepoDir = outputDir;
@@ -60,6 +132,12 @@ async function onboard(options) {
     }
     
     outputDir = ticketRepoDir;
+  }
+
+  // Validate Jira mode requirements
+  if (!jiraUrl) {
+    console.error(chalk.red('❌ Error: --jira <url> required (or use --local for local-only project)'));
+    process.exit(1);
   }
 
   // Get credentials

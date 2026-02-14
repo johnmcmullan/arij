@@ -15,8 +15,50 @@ const chalk = require('chalk');
  * - Common issues
  */
 
+/**
+ * Find tract project root by searching up directory tree
+ * (like git does with .git/)
+ */
+function findTractRoot(startDir) {
+  let currentDir = path.resolve(startDir);
+  const root = path.parse(currentDir).root;
+  
+  while (currentDir !== root) {
+    const tractDir = path.join(currentDir, '.tract');
+    if (fs.existsSync(tractDir)) {
+      return currentDir;
+    }
+    currentDir = path.dirname(currentDir);
+  }
+  
+  return null;
+}
+
 async function doctor(options) {
-  const tractDir = path.resolve(options.tract || '.');
+  const startDir = path.resolve(options.tract || '.');
+  const tractRoot = findTractRoot(startDir);
+  
+  // Not in a tract project - show friendly message and bail
+  if (!tractRoot) {
+    console.log(chalk.bold.cyan('\n🔍 Tract Doctor - Running diagnostics\n'));
+    console.log(chalk.gray(`Directory: ${startDir}\n`));
+    console.log(chalk.yellow('⚠ This doesn\'t look like a Tract project.\n'));
+    console.log(chalk.white('To use Tract, either:\n'));
+    console.log(chalk.white('  1. Clone an existing ticket repo:'));
+    console.log(chalk.gray('     git clone <your-tract-repo-url>'));
+    console.log(chalk.gray('     cd <repo-name>'));
+    console.log(chalk.gray('     tract doctor\n'));
+    console.log(chalk.white('  2. Create a new project with Jira sync:'));
+    console.log(chalk.gray('     mkdir my-tickets && cd my-tickets'));
+    console.log(chalk.gray('     tract onboard --jira <url> --project <KEY>\n'));
+    console.log(chalk.white('  3. Create a local-only project:'));
+    console.log(chalk.gray('     mkdir my-tickets && cd my-tickets'));
+    console.log(chalk.gray('     tract onboard --project <KEY> --local\n'));
+    console.log(chalk.gray('Run \'tract doctor\' inside a Tract project for full diagnostics.\n'));
+    process.exit(1);
+  }
+  
+  const tractDir = tractRoot;
   
   console.log(chalk.bold.cyan('\n🔍 Tract Doctor - Running diagnostics\n'));
   console.log(chalk.gray(`Directory: ${tractDir}\n`));
