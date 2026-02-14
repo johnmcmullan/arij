@@ -27,7 +27,8 @@ class TicketImporter {
     const {
       status = 'open',
       limit = null,
-      jql = null
+      jql = null,
+      projectKey = null
     } = options;
 
     console.log(chalk.bold.cyan('\n📥 Importing Jira Tickets\n'));
@@ -81,12 +82,88 @@ class TicketImporter {
 
     writeSpinner.succeed(chalk.green(`✓ Converted ${issues.length} tickets to markdown`));
 
+    // Run post-import hooks
+    await this.runPostImportHooks(issuesDir);
+
     console.log(chalk.bold.green('\n✅ Import Complete!\n'));
     console.log(chalk.gray(`  Created: ${created} tickets`));
     console.log(chalk.gray(`  Updated: ${updated} tickets`));
     console.log(chalk.gray(`  Location: ${path.relative(process.cwd(), issuesDir)}/\n`));
 
     return { created, updated, total: issues.length };
+  }
+
+  async runPostImportHooks(issuesDir) {
+    const hooks = this.config.import?.hooks || ['sanitize-timestamps'];
+    
+    if (hooks.length === 0) return;
+    
+    const hookSpinner = ora('Running post-import hooks...').start();
+    
+    for (const hookName of hooks) {
+      try {
+        await this.runHook(hookName, issuesDir);
+      } catch (error) {
+        hookSpinner.warn(chalk.yellow(`⚠ Hook '${hookName}' failed: ${error.message}`));
+      }
+    }
+    
+    hookSpinner.succeed(chalk.green('✓ Post-import hooks complete'));
+  }
+
+  async runHook(hookName, issuesDir) {
+    switch (hookName) {
+      case 'sanitize-timestamps':
+        await this.sanitizeTimestamps(issuesDir);
+        break;
+      
+      default:
+        console.log(chalk.yellow(`  Unknown hook: ${hookName}`));
+    }
+  }
+
+  async sanitizeTimestamps(issuesDir) {
+    const { execSync } = require('child_process');
+    const files = fs.readdirSync(issuesDir).filter(f => f.endsWith('.md'));
+    
+    for (const file of files) {
+      const filePath = path.join(issuesDir, file);
+      
+      try {
+        // Get git modified time (last commit that touched this file)
+        const gitTimestamp = execSync(
+          `git log -1 --format=%aI -- "${filePath}"`,
+          { cwd: this.tractDir, encoding: 'utf8' }
+        ).trim();
+        
+        if (!gitTimestamp) continue; // File not in git yet
+        
+        // Read ticket
+        const content = fs.readFileSync(filePath, 'utf8');
+        const parts = content.split('---\n');
+        if (parts.length < 3) continue;
+        
+        const frontmatter = yaml.load(parts[1]);
+        
+        // Update 'updated' timestamp to match git
+        frontmatter.updated = gitTimestamp;
+        
+        // Optionally update 'created' if it's after git time
+        // (Jira import might have wrong creation date)
+        if (frontmatter.created && new Date(frontmatter.created) > new Date(gitTimestamp)) {
+          frontmatter.created = gitTimestamp;
+        }
+        
+        // Rebuild file
+        const newYaml = yaml.dump(frontmatter, { lineWidth: -1 });
+        const newContent = `---\n${newYaml}---\n${parts.slice(2).join('---\n')}`;
+        
+        fs.writeFileSync(filePath, newContent, 'utf8');
+      } catch (error) {
+        // Skip files that error (might not be in git yet)
+        continue;
+      }
+    }
   }
 
   convertToMarkdown(issue) {
@@ -208,6 +285,29 @@ class TicketImporter {
       frontmatter.remaining = hours > 0 ? `${hours}h` : `${minutes}m`;
     }
 
+    // Sprint (custom field - varies by Jira instance)
+    if (this.config.jira?.sprint_field) {
+      const sprintField = fields[this.config.jira.sprint_field];
+      
+      if (sprintField) {
+        // Sprint can be array or single value
+        const sprints = Array.isArray(sprintField) ? sprintField : [sprintField];
+        
+        // Get active or most recent sprint
+        const activeSprint = sprints.find(s => s && s.state === 'active') || 
+                             sprints[sprints.length - 1];
+        
+        if (activeSprint) {
+          // Extract sprint name
+          if (typeof activeSprint === 'object' && activeSprint.name) {
+            frontmatter.sprint = this.normalizeSprintName(activeSprint.name);
+          } else if (typeof activeSprint === 'string') {
+            frontmatter.sprint = this.normalizeSprintName(activeSprint);
+          }
+        }
+      }
+    }
+
     // Attachments (extract Jira URLs)
     if (fields.attachment && fields.attachment.length > 0) {
       frontmatter.attachments = fields.attachment.map(att => ({
@@ -277,6 +377,30 @@ class TicketImporter {
       return normalized;
     }
     return 'medium'; // default
+  }
+
+  normalizeSprintName(jiraSprintName) {
+    if (!jiraSprintName) return null;
+    
+    // Option 1: Extract sprint number if present
+    const numberMatch = jiraSprintName.match(/Sprint\s+(\d+)/i);
+    if (numberMatch) {
+      return `sprint-${numberMatch[1]}`;
+    }
+    
+    // Option 2: Extract week number if present
+    const weekMatch = jiraSprintName.match(/(?:W|Week)\s*(\d+)/i);
+    if (weekMatch) {
+      const year = new Date().getFullYear();
+      return `${year}-W${String(weekMatch[1]).padStart(2, '0')}`;
+    }
+    
+    // Option 3: Sanitize the name
+    return jiraSprintName
+      .toLowerCase()
+      .replace(/\s+/g, '-')
+      .replace(/[^a-z0-9-]/g, '')
+      .substring(0, 50); // Limit length
   }
 
   convertJiraMarkdown(text) {

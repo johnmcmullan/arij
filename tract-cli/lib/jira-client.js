@@ -82,6 +82,47 @@ class JiraClient {
     return allIssues;
   }
 
+  async detectSprintField(projectKey) {
+    // Get a sample issue to inspect fields
+    try {
+      const response = await this.client.get('/rest/api/2/search', {
+        params: {
+          jql: `project = ${projectKey}`,
+          maxResults: 1,
+          fields: '*all'
+        }
+      });
+      
+      if (response.data.issues.length === 0) {
+        return null;
+      }
+      
+      const fields = response.data.issues[0].fields;
+      
+      // Look for fields with "sprint" in the key or value
+      for (const [key, value] of Object.entries(fields)) {
+        // Check if key contains sprint
+        if (key.toLowerCase().includes('sprint')) {
+          return key;
+        }
+        
+        // Check if value looks like sprint data
+        if (value) {
+          const valueStr = JSON.stringify(value).toLowerCase();
+          if (valueStr.includes('sprint') && 
+              (valueStr.includes('state') || valueStr.includes('goal'))) {
+            return key;
+          }
+        }
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error detecting sprint field:', error.message);
+      return null;
+    }
+  }
+
   async getProjectMetadata(projectKey) {
     console.log(`  Fetching project details...`);
     const project = await this.getProject(projectKey);

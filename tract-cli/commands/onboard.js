@@ -291,6 +291,17 @@ See: https://github.com/johnmcmullan/tract
     const metadata = await jira.getProjectMetadata(projectKey);
 
     spinner.succeed(chalk.green('✓ Metadata fetched successfully'));
+    
+    // Detect sprint field
+    spinner.start('Detecting sprint field...');
+    const sprintField = await jira.detectSprintField(projectKey);
+    
+    if (sprintField) {
+      spinner.succeed(chalk.green(`✓ Sprint field detected: ${sprintField}`));
+      metadata.sprintField = sprintField;
+    } else {
+      spinner.info(chalk.gray('No sprint field detected (will skip sprint sync)'));
+    }
 
     // Display what we found
     console.log(chalk.bold('\n📊 Project Metadata:'));

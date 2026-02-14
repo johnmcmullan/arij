@@ -22,7 +22,7 @@ class ConfigGenerator {
   }
 
   generateConfig() {
-    const { project, statuses, issueTypes, priorities } = this.metadata;
+    const { project, statuses, issueTypes, priorities, sprintField } = this.metadata;
 
     const config = {
       prefix: project.key,
@@ -37,10 +37,22 @@ class ConfigGenerator {
       
       fields: {
         required: ['title', 'type', 'status'],
-        optional: ['assignee', 'reporter', 'priority', 'component', 'labels', 'created', 'updated']
+        optional: ['assignee', 'reporter', 'priority', 'component', 'labels', 'sprint', 'created', 'updated']
       },
       
       tag_field: 'labels'
+    };
+    
+    // Add Jira sync config if sprint field detected
+    if (sprintField) {
+      config.jira = {
+        sprint_field: sprintField
+      };
+    }
+    
+    // Post-import hooks (enabled by default)
+    config.import = {
+      hooks: ['sanitize-timestamps']
     };
 
     return yaml.dump(config, { lineWidth: -1 });
