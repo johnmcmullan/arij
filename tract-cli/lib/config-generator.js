@@ -52,7 +52,21 @@ class ConfigGenerator {
     
     // Post-import hooks (enabled by default)
     config.import = {
-      hooks: ['sanitize-timestamps']
+      hooks: [
+        'sanitize-timestamps',
+        'normalize-labels'
+      ]
+    };
+    
+    // Label normalization rules
+    config.labels = {
+      case: 'lowercase',  // lowercase, uppercase, title, or original
+      mappings: {
+        // Add custom mappings here - case insensitive matching
+        // 'TBricks': 'tbricks',
+        // 'Tbricks': 'tbricks',
+        // 'performance': 'performance-tuning'
+      }
     };
 
     return yaml.dump(config, { lineWidth: -1 });

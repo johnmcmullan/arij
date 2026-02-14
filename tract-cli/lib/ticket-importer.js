@@ -117,6 +117,10 @@ class TicketImporter {
         await this.sanitizeTimestamps(issuesDir);
         break;
       
+      case 'normalize-labels':
+        await this.normalizeLabels(issuesDir);
+        break;
+      
       default:
         console.log(chalk.yellow(`  Unknown hook: ${hookName}`));
     }
