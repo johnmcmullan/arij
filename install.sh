@@ -141,19 +141,29 @@ if command -v tract >/dev/null 2>&1; then
     echo
     echo -e "${BLUE}Next Steps:${NC}"
     echo
-    echo "  1. Clone your ticket repo:"
-    echo -e "     ${YELLOW}git clone <your-ticket-repo-url>${NC}"
+    echo -e "  ${YELLOW}Option 1: LLM-Assisted Onboarding (Recommended)${NC}"
+    echo "     Use Claude Code, OpenClaw, or any LLM CLI:"
     echo
-    echo "  2. Set sync server (optional):"
-    echo -e "     ${YELLOW}export TRACT_SYNC_SERVER=http://your-server:3100${NC}"
+    echo -e "     ${GRAY}cd your-project-directory${NC}"
+    echo -e "     ${GRAY}claude  # or openclaw, cursor, etc.${NC}"
     echo
-    echo "  3. Run diagnostics:"
-    echo -e "     ${YELLOW}cd your-ticket-repo && tract doctor${NC}"
+    echo "     Then tell your LLM:"
+    echo -e "     ${GREEN}\"Read ~/.tract-cli/.tract/skills/tract-onboarding/SKILL.md"
+    echo -e "     and help me set up Tract for this project.\"${NC}"
     echo
-    echo "  4. Start creating tickets:"
-    echo -e "     ${YELLOW}tract create APP --title \"My first ticket\"${NC}"
+    echo -e "     ${GRAY}Quick reference: cat ~/.tract-cli/.tract/LLM-QUICKSTART.txt${NC}"
     echo
-    echo -e "${BLUE}Documentation:${NC} https://github.com/johnmcmullan/tract"
+    echo -e "  ${YELLOW}Option 2: Manual Onboarding${NC}"
+    echo "     Interactive mode:"
+    echo -e "     ${GRAY}tract onboard --interactive${NC}"
+    echo
+    echo "     Or with full arguments:"
+    echo -e "     ${GRAY}tract onboard --project APP --local${NC}"
+    echo -e "     ${GRAY}tract onboard --project APP --jira <url> --user <name>${NC}"
+    echo
+    echo -e "${BLUE}Learn More:${NC}"
+    echo -e "  LLM Guide: ${GRAY}cat ~/.tract-cli/.tract/LLM-ONBOARDING.md${NC}"
+    echo -e "  Full Docs: ${GRAY}https://github.com/johnmcmullan/tract${NC}"
     echo
 else
     echo -e "${RED}✗${NC} Installation failed - tract command not found in PATH"
