@@ -39,6 +39,23 @@ ls .tract/config.yaml 2>/dev/null
 
 Ask the user which setup mode they want:
 
+**Three Options:**
+
+1. **Local-only (add Jira later)**
+   - Start working immediately
+   - Add Jira sync when ready
+   - Migrate path documented below
+
+2. **Jira sync now**
+   - Full metadata import during onboarding
+   - Immediate bidirectional sync
+   - Requires Jira credentials ready
+
+3. **Jira later (deferred import)**
+   - Save Jira URL in config
+   - Don't import tickets yet
+   - Run `tract import` when ready
+
 **Option A: Interactive (Recommended for Humans)**
 ```bash
 tract onboard --interactive
@@ -50,7 +67,15 @@ tract onboard --interactive
 **Option B: Full Arguments (Recommended for LLMs)**
 Gather all required info through conversation, then execute with complete flags.
 
-For Jira sync:
+For local-only (add Jira later):
+```bash
+tract onboard \
+  --project <KEY> \
+  --local \
+  --output <directory>
+```
+
+For Jira sync now:
 ```bash
 tract onboard \
   --project <KEY> \
@@ -59,14 +84,6 @@ tract onboard \
   --token <api-token> \
   --output <directory> \
   [--import-tickets]
-```
-
-For local-only:
-```bash
-tract onboard \
-  --project <KEY> \
-  --local \
-  --output <directory>
 ```
 
 ### Step 2: Gather Required Information
