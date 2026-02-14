@@ -45,60 +45,86 @@ tract config review --learn
 
 ---
 
-### 2. Submodule Friction (Valid, Worth Addressing)
+### 2. Submodule "Friction" (Reconsidered)
 
-**Problem:** Developers must remember `git submodule update --remote`, commit in parent repo
+**Grok's concern:** Developers must remember `git submodule update --remote`, commit in parent repo
 
-**Solutions:**
+**Reality check:** For git-fluent developers (target audience), submodules are standard workflow. The "friction" is only friction for beginners.
 
-#### Option A: Git Hooks (Automate Submodule Updates)
+**Real benefits of submodules:**
+- Separate ticket repo (independent history)
+- Multi-project workspaces (share tickets across repos)
+- Federation (teams have own repos, share some)
+- Versioning (pin ticket repo to specific commit)
+
+**Revised approach:** Support BOTH equally, choose based on use case
+
+#### Monorepo (tickets in code repo)
+```
+my-project/
+├── .tract/
+├── issues/               # Just a directory
+├── src/
+└── .git/
+```
+
+**Best for:**
+- Single project
+- Solo developer
+- Want simplicity
+- Don't need to share tickets
+
+#### Submodule (separate ticket repo)
+```
+frontend/
+├── src/
+├── tickets/             # Submodule → shared ticket repo
+└── .git/
+
+backend/
+├── src/
+├── tickets/             # Same submodule → shared repo
+└── .git/
+```
+
+**Best for:**
+- Multi-project workspace
+- Want to share tickets across repos
+- Enterprise federation
+- Independent ticket versioning
+
+**Decision:** Both are first-class, not "simple vs advanced"
+
+```bash
+# Onboarding asks about use case
+tract onboard
+
+→ How many projects will use these tickets?
+   1. Just this one (tickets in this repo)
+   2. Multiple projects (separate ticket repo)
+```
+
+#### Reduce Submodule "Friction" (If Users Choose It)
+
+**Auto-update hook:**
 ```bash
 # .git/hooks/post-merge
 #!/bin/bash
 git submodule update --init --recursive
-cd tickets && git pull origin master
 ```
 
-Auto-runs after `git pull` in code repo.
-
-#### Option B: Monorepo Mode (Grok's Suggestion) ✅
-```
-my-project/
-├── .tract/               # Tract metadata
-│   ├── config.yaml
-│   ├── skills/
-│   └── worklogs/
-├── issues/               # Tickets (NOT submodule)
-│   ├── APP-1.md
-│   └── APP-2.md
-├── src/                  # Code
-└── .git/                 # Single repo
-```
-
-**Pros:**
-- No submodule complexity
-- Single `git pull` gets everything
-- Unified history
-- Simpler for beginners
-
-**Cons:**
-- Tickets tied to code repo (can't share across projects easily)
-- Larger repo (tickets + code together)
-
-**Decision:** Support BOTH modes
-- Default: Monorepo (`.tract/` and `issues/` in code repo)
-- Advanced: Submodule (separate ticket repo, multi-project)
-
+**Helper command:**
 ```bash
-# Onboarding choice
-tract onboard
-# → "In-repo (simple) or separate repo (advanced)?"
+tract sync  # Pulls latest tickets if submodule
 ```
+
+**Documentation:** "Using submodules? Add this hook..." (not "advanced users only")
 
 #### Implementation Priority
-1. ✅ **Monday:** Demo monorepo mode (simple, no submodules)
-2. ⬜ **Week 2:** Document submodule mode for advanced users
-3. ⬜ **Month 1:** Auto-detection (if `.tract/` exists, use it; if submodule, handle it)
+1. ✅ **Monday:** Demo BOTH modes (show flexibility)
+2. ⬜ **Week 1:** Onboarding asks use case, suggests appropriate mode
+3. ⬜ **Week 2:** Auto-install hooks for submodule users
+4. ⬜ **Month 1:** `tract sync` helper command
 
 ---
 
