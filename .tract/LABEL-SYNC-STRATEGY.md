@@ -111,11 +111,12 @@ Tract labels → Never synced back
 
 ## Recommendation by Use Case
 
-### Migration (One-Time Import)
+### Migration (One-Time Import) ← Most Common
 
 **No sync back to Jira:**
 - Use Option C (don't sync labels)
-- Or Option A (doesn't matter, you're leaving Jira)
+- Fix Jira labels in Jira DB (if needed)
+- Import once, normalize in Tract, move on
 
 **Config:**
 ```yaml
@@ -124,17 +125,23 @@ sync:
   enabled: false
 ```
 
-### Ongoing Sync (Parallel Jira + Tract)
+**Jira label cleanup (if needed):**
+- Jira admin runs SQL to standardize labels
+- **Not Tract's job** - fix at source
 
-**If you control Jira:**
-- Use Option A (standardize everywhere)
-- Communicate to Jira users ("labels are now lowercase")
+### Ongoing Sync (Parallel Jira + Tract) ← Rare
 
-**If Jira has other users:**
-- Use Option B (reverse mappings)
-- Or Option C (labels local to Tract)
+**If you must keep Jira:**
+- Use Option C (labels local to Tract)
+- Don't sync labels back
+- Jira users see Jira labels, Tract users see normalized labels
 
-### Recommended Default: Option C
+**If you want to standardize Jira:**
+- Fix labels in Jira DB first
+- Then import to Tract
+- Or use Option A (sync normalized back)
+
+### Recommended Default: Option C (Labels Local)
 
 **Labels as local metadata:**
 - Import labels from Jira (normalize them)
@@ -318,14 +325,19 @@ If Jira users expect original case, use reverse_mappings.
 
 ## Bottom Line
 
-**Current behavior (by accident):** Labels imported, normalized, not synced back. This is good!
+**Current behavior:** Labels imported, normalized, not synced back. **Perfect!**
 
-**Recommendation:** Keep it that way by default.
+**Recommendation:** Keep it that way.
 
-**Add config option:** `sync.sync_labels: false` (explicit default)
+**Jira label cleanup:** If Jira labels are messy, fix them in Jira (DB admin SQL). Not Tract's job.
 
-**Future enhancement:** Add reverse_mappings for teams that need it.
+**Tract label normalization:** For post-import cleanup and maintaining consistency in Tract.
+
+**Sync architecture:** Most developers don't sync individually. Central CI/CD or team lead syncs.
 
 ---
 
-**For Monday:** Document that labels are local metadata. Sync back is opt-in.
+**For Monday:** 
+- Document labels as local metadata
+- Document central sync architecture (CI/CD)
+- Don't build complex reverse-mapping logic (YAGNI)

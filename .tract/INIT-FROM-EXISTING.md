@@ -116,22 +116,46 @@ node ~/work/tract/app.js
 
 **That's it!** No `tract init` needed.
 
-## Optional Sync Setup
+## Sync Architecture (Important!)
 
-**If developer wants to sync with Jira:**
+**Developers cloning upstream DON'T need Jira sync.**
+
+**Why:**
+- Upstream already has tickets (synced by CI/CD or team lead)
+- Developer works with git (create tickets, commit, push)
+- CI/CD or team lead handles Jira sync centrally
+
+**Developer workflow:**
+```bash
+git clone repo
+tract create PROJ --title "New ticket"
+git commit -am "Add ticket"
+git push  # That's it!
+```
+
+**Sync happens centrally:**
+```bash
+# CI/CD server or team lead
+git pull
+tract sync  # Syncs new tickets to Jira
+```
+
+**ONE sync point, not per-developer.**
+
+### Optional: Individual Developer Sync
+
+**Only needed if:**
+- No central sync (small team, no CI/CD)
+- Developer wants to import from Jira directly
 
 ```bash
-# Set credentials
 export JIRA_USERNAME=dev@company.com
 export JIRA_TOKEN=<your-api-token>
 
-# Add to ~/.bashrc or ~/.zshrc
-echo 'export JIRA_USERNAME=dev@company.com' >> ~/.bashrc
-echo 'export JIRA_TOKEN=<your-api-token>' >> ~/.bashrc
-
-# Test import
-tract import --limit 5
+tract import --limit 5  # Import specific tickets
 ```
+
+**But most developers won't need this.**
 
 ## What If Config Is Missing?
 
@@ -272,45 +296,66 @@ boards:
 1. `.tract/config.yaml` (team config)
 2. `.tract/config.local.yaml` (personal overrides, gitignored)
 
-## Multi-Developer Scenarios
+## Sync Architectures
 
-### Scenario A: Same Sync Credentials
+### Recommended: Central Sync (CI/CD or Team Lead)
 
-**Team shares one Jira account:**
+**Setup:**
+```yaml
+# .github/workflows/tract-sync.yml
+on:
+  push:
+    paths:
+      - 'issues/**'
 
-```bash
-# Add to team docs
-export JIRA_USERNAME=team-account@company.com
-export JIRA_TOKEN=<shared-token>
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Sync to Jira
+        env:
+          JIRA_USERNAME: ${{ secrets.JIRA_USERNAME }}
+          JIRA_TOKEN: ${{ secrets.JIRA_TOKEN }}
+        run: tract sync
 ```
 
-Everyone uses same credentials.
-
-### Scenario B: Individual Credentials
-
-**Each developer has own Jira account:**
-
+**Developer workflow:**
 ```bash
-# Each developer sets their own
-export JIRA_USERNAME=john@company.com
-export JIRA_TOKEN=<john-token>
-
-export JIRA_USERNAME=sarah@company.com
-export JIRA_TOKEN=<sarah-token>
-```
-
-### Scenario C: No Sync
-
-**Developers work local-only:**
-
-```bash
-# No credentials needed
-# Just create tickets and commit to git
+# Just git, no Jira credentials needed
+git clone repo
 tract create PROJ --title "Ticket"
-git add issues/
-git commit -m "Add ticket"
-git push
+git push  # CI/CD syncs to Jira
 ```
+
+**Benefits:**
+- Developers don't need Jira credentials
+- One sync point (easier to debug)
+- Consistent sync behavior
+
+### Alternative: No Sync (Pure Git)
+
+**Migration scenario:**
+```bash
+# One-time import
+tract import --jira <url> --project PROJ
+
+# Then: Tract-only, no ongoing sync
+# Developers just use git
+```
+
+**Benefits:**
+- Simplest (no sync complexity)
+- Fastest (no external dependencies)
+- Pure git workflow
+
+### Edge Case: Individual Developer Sync
+
+**Only if:**
+- Small team, no CI/CD
+- Each developer manages own Jira sync
+
+**Not recommended** - sync should be centralized.
 
 ## Health Check Commands
 
