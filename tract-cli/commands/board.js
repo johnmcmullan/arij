@@ -373,24 +373,25 @@ class BoardCommand {
 
 /**
  * Command handler
+ * Commander.js passes: (configName, cmdObj)
  */
-async function boardCommand(args, configName) {
+async function boardCommand(configName, cmdObj) {
   const options = {
     issuesDir: path.join(process.cwd(), 'issues'),
-    sprint: args.sprint || null,
-    label: args.label || null,
-    assignee: args.assignee || null,
-    status: args.status || null,
-    excludeStatus: args['exclude-status'] || null,
-    noWatch: args['no-watch'] || false,
-    save: args.save || null,
-    list: args.list || false
+    sprint: cmdObj.sprint || null,
+    label: cmdObj.label || null,
+    assignee: cmdObj.assignee || null,
+    status: cmdObj.status || null,
+    excludeStatus: cmdObj.excludeStatus || null,
+    noWatch: !cmdObj.watch,
+    save: cmdObj.save || null,
+    list: cmdObj.list || false
   };
 
   const board = new BoardCommand(options);
 
   // If config name provided as positional arg, load it
-  if (configName && !options.save && !options.list) {
+  if (configName && typeof configName === 'string' && !options.save && !options.list) {
     board.loadBoardConfig(configName);
   }
 
