@@ -1,15 +1,17 @@
 const axios = require('axios');
 const chalk = require('chalk');
+const fs = require('fs');
+const path = require('path');
+const { execSync } = require('child_process');
 
 async function create(project, options) {
   try {
     // Get sync server URL
     const serverUrl = options.server || process.env.TRACT_SYNC_SERVER;
+    
+    // If no sync server, create locally
     if (!serverUrl) {
-      console.error(chalk.red('❌ Sync server URL required'));
-      console.error(chalk.gray('Set TRACT_SYNC_SERVER env var or use --server option'));
-      console.error(chalk.gray('Example: export TRACT_SYNC_SERVER=http://tract-server:3100'));
-      process.exit(1);
+      return await createLocally(project, options);
     }
 
     // Prepare request
@@ -72,6 +74,119 @@ async function create(project, options) {
       console.error(chalk.red(`\n❌ Error: ${error.message}`));
     }
     process.exit(1);
+  }
+}
+
+async function createLocally(project, options) {
+  // Local-only ticket creation (no sync server)
+  const issuesDir = path.resolve('issues');
+  
+  // Check if issues/ exists
+  if (!fs.existsSync(issuesDir)) {
+    console.error(chalk.red('❌ issues/ directory not found'));
+    console.error(chalk.yellow('💡 Are you in a Tract project directory?'));
+    console.error(chalk.gray('   Run: tract doctor'));
+    process.exit(1);
+  }
+  
+  // Find next ticket ID
+  const files = fs.readdirSync(issuesDir).filter(f => f.endsWith('.md'));
+  let nextId = 1;
+  
+  if (files.length > 0) {
+    // Extract numbers from existing tickets
+    const numbers = files
+      .map(f => f.replace(`${project}-`, '').replace('.md', ''))
+      .map(n => parseInt(n))
+      .filter(n => !isNaN(n));
+    
+    if (numbers.length > 0) {
+      nextId = Math.max(...numbers) + 1;
+    }
+  }
+  
+  const issueKey = `${project}-${nextId}`;
+  const filename = path.join(issuesDir, `${issueKey}.md`);
+  
+  // Check if file already exists
+  if (fs.existsSync(filename)) {
+    console.error(chalk.red(`❌ Ticket ${issueKey} already exists`));
+    process.exit(1);
+  }
+  
+  // Get git user for assignee default
+  let gitUser = options.assignee;
+  if (!gitUser) {
+    try {
+      gitUser = execSync('git config user.name', { encoding: 'utf8' }).trim();
+    } catch (err) {
+      gitUser = null;
+    }
+  }
+  
+  // Build frontmatter
+  const now = new Date().toISOString();
+  const frontmatter = {
+    id: issueKey,
+    title: options.title,
+    type: options.type || 'task',
+    status: 'backlog',
+    priority: options.priority || 'medium',
+    created: now,
+  };
+  
+  if (gitUser) frontmatter.assignee = gitUser;
+  if (options.components) {
+    frontmatter.components = options.components.split(',').map(c => c.trim());
+  }
+  if (options.labels) {
+    frontmatter.labels = options.labels.split(',').map(l => l.trim());
+  }
+  
+  // Build markdown content
+  const yaml = require('js-yaml');
+  let content = '---\n';
+  content += yaml.dump(frontmatter, { lineWidth: -1 });
+  content += '---\n\n';
+  
+  if (options.description) {
+    content += `# Description\n\n${options.description}\n\n`;
+  } else {
+    content += `# Description\n\nAdd description here.\n\n`;
+  }
+  
+  content += `## Tasks\n\n`;
+  content += `- [ ] Task 1\n`;
+  content += `- [ ] Task 2\n\n`;
+  
+  content += `## Notes\n\n`;
+  content += `Additional context and notes.\n`;
+  
+  // Write file
+  fs.writeFileSync(filename, content);
+  
+  console.log(chalk.cyan(`\n📝 Created ticket locally`));
+  console.log(chalk.gray(`   ID: ${issueKey}`));
+  console.log(chalk.gray(`   File: issues/${issueKey}.md`));
+  
+  // Commit to git
+  try {
+    execSync(`git add "${filename}"`, { stdio: 'pipe' });
+    execSync(`git commit -m "Create ${issueKey}: ${options.title}"`, { stdio: 'pipe' });
+    console.log(chalk.green(`\n✅ Created ${issueKey}`));
+    console.log(chalk.gray(`   Committed to git`));
+  } catch (err) {
+    console.log(chalk.yellow(`\n⚠️  Created ${issueKey} (not committed)`));
+    console.log(chalk.gray(`   File created but git commit failed`));
+    console.log(chalk.gray(`   Commit manually: git add issues/${issueKey}.md && git commit`));
+  }
+  
+  console.log(chalk.cyan(`\n🔗 Edit: issues/${issueKey}.md`));
+  console.log(chalk.gray(`   View: cat issues/${issueKey}.md`));
+  
+  if (!options.server && !process.env.TRACT_SYNC_SERVER) {
+    console.log(chalk.gray(`\n💡 This is a local-only ticket (no Jira sync)`));
+    console.log(chalk.gray(`   To enable sync, set TRACT_SYNC_SERVER`));
   }
 }
 
