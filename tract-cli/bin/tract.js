@@ -50,6 +50,8 @@ program
   .command('import')
   .description('Import tickets from Jira to Tract')
   .option('--tract <dir>', 'Tract ticket repository directory (defaults to current)', '.')
+  .option('--jira <url>', 'Jira URL for one-time import (or use config)')
+  .option('--project <key>', 'Jira project key for one-time import (or use config)')
   .option('--user <username>', 'Jira username (or use JIRA_USERNAME env var)')
   .option('--token <token>', 'Jira API token (or use JIRA_TOKEN env var)')
   .option('--password <password>', 'Jira password (or use JIRA_PASSWORD env var)')
