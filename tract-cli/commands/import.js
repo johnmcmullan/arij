@@ -8,7 +8,7 @@ const TicketImporter = require('../lib/ticket-importer');
 async function importCommand(options) {
   const tractDir = path.resolve(options.tract || '.');
   
-  // Load config to get Jira details
+  // Load config FIRST (before asking for credentials)
   const configPath = path.join(tractDir, '.tract', 'config.yaml');
   if (!fs.existsSync(configPath)) {
     console.error(chalk.red(`❌ Error: .tract/config.yaml not found at ${tractDir}`));
@@ -18,15 +18,45 @@ async function importCommand(options) {
 
   const config = yaml.load(fs.readFileSync(configPath, 'utf8'));
   
-  // Get auth from environment or options
+  // Check sync configuration EARLY (before asking for credentials)
+  const jiraUrl = config.jira?.url;
+  const syncEnabled = config.sync?.enabled !== false; // Default true if not explicitly set
+  
+  // Guard: Sync must be configured
+  if (!jiraUrl || jiraUrl === 'null' || jiraUrl === null) {
+    console.error(chalk.red('❌ Error: Sync not configured\n'));
+    console.error(chalk.yellow('This is a local-only Tract project.'));
+    console.error(chalk.yellow('To import from Jira, you need to configure sync first.\n'));
+    console.error(chalk.bold('Steps to enable sync:\n'));
+    console.error(chalk.gray('1. Edit .tract/config.yaml:'));
+    console.error(chalk.gray('   '));
+    console.error(chalk.gray('   jira:'));
+    console.error(chalk.gray('     url: https://jira.company.com'));
+    console.error(chalk.gray('     project: ' + (config.project || 'YOUR_PROJECT')));
+    console.error(chalk.gray('   sync:'));
+    console.error(chalk.gray('     enabled: true'));
+    console.error(chalk.gray(''));
+    console.error(chalk.gray('2. Set credentials (secure):'));
+    console.error(chalk.gray('   export JIRA_USERNAME=you@company.com'));
+    console.error(chalk.gray('   export JIRA_TOKEN=<your-api-token>'));
+    console.error(chalk.gray(''));
+    console.error(chalk.gray('3. Try import again:'));
+    console.error(chalk.gray('   tract import\n'));
+    process.exit(1);
+  }
+  
+  // Get auth from environment or options (NOW we ask, because sync is configured)
   const username = options.user || process.env.JIRA_USERNAME;
   const password = options.password || process.env.JIRA_PASSWORD;
   const token = options.token || process.env.JIRA_TOKEN;
 
   if (!username || !(password || token)) {
-    console.error(chalk.red('❌ Error: Jira credentials required'));
-    console.error(chalk.yellow('   Set JIRA_USERNAME and JIRA_PASSWORD environment variables'));
-    console.error(chalk.yellow('   Or use --user and --password/--token options'));
+    console.error(chalk.red('❌ Error: Jira credentials required\n'));
+    console.error(chalk.yellow('Set environment variables:'));
+    console.error(chalk.gray('   export JIRA_USERNAME=you@company.com'));
+    console.error(chalk.gray('   export JIRA_TOKEN=<your-api-token>\n'));
+    console.error(chalk.yellow('Or use command options:'));
+    console.error(chalk.gray('   tract import --user <username> --token <token>\n'));
     process.exit(1);
   }
 
@@ -35,12 +65,6 @@ async function importCommand(options) {
     username,
     password: password || token
   };
-
-  const jiraUrl = config.jira?.url;
-  if (!jiraUrl) {
-    console.error(chalk.red('❌ Error: Jira URL not found in .tract/config.yaml'));
-    process.exit(1);
-  }
 
   const jiraClient = new JiraClient(jiraUrl, auth);
   const importer = new TicketImporter(jiraClient, tractDir);
@@ -72,7 +96,7 @@ async function importCommand(options) {
 
     return result;
   } catch (error) {
-    console.error(chalk.red('\n❌ Import failed'));
+    console.error(chalk.red('\n❌ Import failed\n'));
     
     if (error.response) {
       console.error(chalk.red(`   Jira API Error: ${error.response.status} ${error.response.statusText}`));
@@ -81,8 +105,13 @@ async function importCommand(options) {
           console.error(chalk.red(`   ${msg}`));
         });
       }
+      if (error.response.status === 401) {
+        console.error(chalk.yellow('\n💡 Tip: Check your username and token'));
+        console.error(chalk.gray('   export JIRA_USERNAME=you@company.com'));
+        console.error(chalk.gray('   export JIRA_TOKEN=<your-api-token>\n'));
+      }
     } else {
-      console.error(chalk.red(`   ${error.message}`));
+      console.error(chalk.red(`   ${error.message}\n`));
     }
     
     process.exit(1);
