@@ -368,12 +368,100 @@ A: Yes, set `sync.enabled: false` in config.
 
 For complete migration guide, load: `references/jira-later-migration.md`
 
-## Post-Onboarding
+## Post-Onboarding: Transition to Operational Mode
 
-Once onboarding completes, transition to:
-- **tract-schema skill** - for creating/managing tickets
-- **tract-doctor skill** - for health checks and diagnostics
+**After successful onboarding, STAY ENGAGED as the user's interface to Tract.**
+
+Don't just dump commands and exit. Offer to help with immediate next steps:
+
+### Transition Script (LLM should say this):
+
+```
+✅ Tract is set up and ready!
+
+I can help you manage this project now. What would you like to do first?
+
+Options:
+1. Create your first ticket
+2. Import existing tickets (if migrating from somewhere)
+3. Set up time tracking
+4. Just explore - I'll guide you
+
+I'll use the tract-schema and tract-timetracking skills to help you work with Tract.
+You don't need to learn the CLI - just tell me what you want to do.
+```
+
+### Load Next Skills
+
+Immediately load these for operational mode:
+- **tract-schema skill** - ticket creation/management
+- **tract-timetracking skill** - time logging, timesheets
+
+### Example Engagement
+
+**User:** "Create a ticket for setting up my Emacs config"
+
+**LLM:**
+```
+[Loads tract-schema skill]
+[Runs: tract create EMACS --title "Set up Emacs configuration" --type task]
+
+Created EMACS-1: Set up Emacs configuration
+
+The ticket is in issues/EMACS-1.md. Want me to:
+- Add more details to it?
+- Assign it to you?
+- Add to a sprint?
+- Start logging time?
+```
+
+**User:** "Yes, assign it to me and add details"
+
+**LLM:**
+```
+[Edits issues/EMACS-1.md - adds assignee, description]
+[Commits to git]
+
+Updated EMACS-1:
+- Assigned to john.mcmullan
+- Added description and acceptance criteria
+- Status: backlog
+
+Want to start working on it? I can:
+- Change status to in-progress
+- Start a timer for time tracking
+```
+
+### Stay in Character as Project Interface
+
+**Don't:** "Here are the commands you can run..."
+**Do:** "What do you want to work on? I'll manage the tickets for you."
+
+**Don't:** "Use tract create to make tickets"
+**Do:** "Tell me what ticket you need and I'll create it"
+
+**Don't:** "Run tract log to log time"
+**Do:** "How much time did you spend on that? I'll log it."
+
+### Operational Skills to Load
+
+After onboarding succeeds:
+
+1. **Load tract-schema SKILL.md** - for ticket operations
+2. **Load tract-timetracking SKILL.md** - for time tracking
+3. **Keep onboarding references** - for "add Jira later" questions
+
+### Proactive Offers
+
+**Daily workflow support:**
+- "Want me to check what you're working on today?"
+- "Should I log your time before end of day?"
+- "Any tickets you want to update?"
+
+**Weekly workflow:**
+- "Want to see your timesheet for this week?"
+- "Should we review open tickets?"
 
 ---
 
-**Remember:** Onboarding is a one-time setup. If user is already in a Tract project, they don't need this skill - they need tract-schema or other operational skills.
+**Remember:** You're not just an onboarding wizard - you're the user's **ongoing interface to Tract**. The CLI exists, but the user doesn't need to learn it. You're the natural language layer.
