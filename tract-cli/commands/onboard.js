@@ -4,6 +4,7 @@ const os = require('os');
 const { execSync } = require('child_process');
 const chalk = require('chalk');
 const ora = require('ora');
+const { prompt } = require('enquirer');
 const JiraClient = require('../lib/jira-client');
 const ConfigGenerator = require('../lib/config-generator');
 const TicketImporter = require('../lib/ticket-importer');
@@ -11,10 +12,90 @@ const TicketImporter = require('../lib/ticket-importer');
 async function onboard(options) {
   console.log(chalk.bold.cyan('\n🚀 Tract Onboarding\n'));
 
+  // Interactive mode - gather all inputs via prompts
+  if (options.interactive) {
+    console.log(chalk.gray('Interactive setup - I\'ll ask a few questions.\n'));
+    
+    const answers = await prompt([
+      {
+        type: 'input',
+        name: 'projectKey',
+        message: 'Project key (e.g., APP, TB)',
+        initial: options.project || '',
+        validate: (val) => val.length >= 2 || 'Project key required (2+ chars)'
+      },
+      {
+        type: 'select',
+        name: 'mode',
+        message: 'Setup mode',
+        choices: [
+          { name: 'local', message: 'Local-only (no Jira sync)', value: 'local' },
+          { name: 'jira', message: 'Connect to Jira', value: 'jira' }
+        ],
+        initial: options.local ? 0 : (options.jira ? 1 : 0)
+      },
+      {
+        type: 'input',
+        name: 'jiraUrl',
+        message: 'Jira URL (e.g., https://jira.company.com)',
+        initial: options.jira || '',
+        skip() { return this.state.answers.mode === 'local'; },
+        validate: (val) => val.startsWith('http') || 'Must be a valid URL'
+      },
+      {
+        type: 'input',
+        name: 'username',
+        message: 'Jira username',
+        initial: options.user || process.env.JIRA_USERNAME || '',
+        skip() { return this.state.answers.mode === 'local'; },
+        validate: (val) => val.length > 0 || 'Username required'
+      },
+      {
+        type: 'password',
+        name: 'token',
+        message: 'Jira API token (or leave blank to use JIRA_TOKEN env var)',
+        initial: '',
+        skip() { 
+          return this.state.answers.mode === 'local' || process.env.JIRA_TOKEN;
+        }
+      },
+      {
+        type: 'input',
+        name: 'outputDir',
+        message: 'Output directory',
+        initial: options.output || '.',
+        validate: (val) => val.length > 0 || 'Output directory required'
+      },
+      {
+        type: 'confirm',
+        name: 'importTickets',
+        message: 'Import existing tickets?',
+        initial: false,
+        skip() { return this.state.answers.mode === 'local'; }
+      }
+    ]);
+    
+    // Map answers back to options format
+    options.project = answers.projectKey.toUpperCase();
+    options.local = answers.mode === 'local';
+    options.jira = answers.jiraUrl;
+    options.user = answers.username;
+    options.token = answers.token || process.env.JIRA_TOKEN;
+    options.output = answers.outputDir;
+    options.importTickets = answers.importTickets;
+    
+    console.log();
+  }
+
   // Validate inputs
   const isLocal = options.local;
   const jiraUrl = options.jira;
-  const projectKey = options.project.toUpperCase();
+  const projectKey = options.project ? options.project.toUpperCase() : null;
+  
+  if (!projectKey) {
+    console.error(chalk.red('❌ Error: --project required (or use --interactive)'));
+    process.exit(1);
+  }
   let outputDir = path.resolve(options.output);
   const submodulePath = options.submodule;
   const remoteUrl = options.remote;

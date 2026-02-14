@@ -22,7 +22,8 @@ program
 program
   .command('onboard')
   .description('Bootstrap a new Tract project (with Jira sync or local-only)')
-  .requiredOption('--project <key>', 'Project key (e.g., APP, TB)')
+  .option('--project <key>', 'Project key (e.g., APP, TB)')
+  .option('--interactive', 'Interactive setup (asks questions)')
   .option('--jira <url>', 'Jira instance URL (e.g., https://jira.company.com)')
   .option('--local', 'Create local-only project (no Jira sync)')
   .option('--user <username>', 'Jira username (or use JIRA_USERNAME env var)')
