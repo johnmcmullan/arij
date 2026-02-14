@@ -38,8 +38,23 @@ If you're in a subdirectory: Tract searches parent dirs (like git does).
 
 ### Step 2: Creating Tickets
 
-**Method 1: Using tract CLI (Recommended)**
+**Method 1: Direct File Creation (Local-Only Projects)**
+
+**Note:** For local-only projects (no sync server), creating markdown files directly is the primary method. This is Tract's philosophy - tickets are just files.
+
 ```bash
+# Create next ticket ID (e.g., EMACS-1)
+# Get next ID from: ls issues/ | sort -V | tail -1
+```
+
+**Method 2: Using tract CLI (Requires Sync Server)**
+
+**⚠️ Current Limitation:** `tract create` requires `TRACT_SYNC_SERVER` even for local-only projects. This is a known issue.
+
+**For Jira-synced projects:**
+```bash
+export TRACT_SYNC_SERVER=http://tract-server:3100
+
 tract create <PROJECT> \
   --title "Fix login timeout bug" \
   --type bug \
@@ -48,7 +63,7 @@ tract create <PROJECT> \
   --description "Users logged out after 5 min..."
 ```
 
-**Method 2: Direct File Creation (Advanced)**
+**For local-only projects (workaround):**
 
 Create `issues/APP-<NEXT-ID>.md`:
 
