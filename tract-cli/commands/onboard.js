@@ -121,18 +121,35 @@ async function onboard(options) {
     fs.mkdirSync(worklogsDir, { recursive: true });
     fs.mkdirSync(tractDir, { recursive: true });
     
-    // Create minimal config.yaml
+    // Create config.yaml with sensible defaults
     const configPath = path.join(tractDir, 'config.yaml');
     const configContent = `# Tract Configuration
 # Project: ${projectKey}
 
 project: ${projectKey}
+
+# Issue types - common ticket categories
+types: [bug, story, task, epic]
+
+# Workflow statuses - customize as needed
+statuses: [backlog, todo, in-progress, review, done]
+
+# Priority levels
+priorities: [trivial, minor, major, critical, blocker]
+
+# Jira sync (optional - configure later)
 jira:
   url: null  # Add Jira URL later to enable sync
   project: ${projectKey}
 
 sync:
   enabled: false  # Set to true when Jira is configured
+
+# Default values for new tickets
+defaults:
+  type: task
+  status: backlog
+  priority: medium
 `;
     fs.writeFileSync(configPath, configContent);
     
