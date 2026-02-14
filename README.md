@@ -1,8 +1,8 @@
-# Tract — A Jira Replacement for Developers
+# Tract — Git-Native Project Management
 
 > **The product is a specification. The interface is any LLM. The infrastructure is git.**
 
-Tract is a project management system that treats tickets as **markdown files** in **git**, synced bidirectionally with Jira. It's designed for developers who prefer working in their terminal and delegating to LLMs.
+Tract is a project management system that treats tickets as **markdown files** in **git**. It's designed for developers who prefer working in their terminal and delegating to LLMs, with optional bidirectional sync to external systems.
 
 ## Philosophy
 
@@ -11,21 +11,21 @@ Tract is a project management system that treats tickets as **markdown files** i
 
 **Tract:**
 - Talk to your LLM → "Create a ticket for that auth bug we discussed" → Done  
-- Edit markdown files → Git commit → Automatically syncs to Jira
+- Edit markdown files → Git commit → Changes tracked in version control
 
 ## Why Tract?
 
 ### For Developers
-- **Work offline** - Jira down? Keep creating tickets, logging time, making changes
+- **Work offline** - Full local repository, sync when ready
 - **Use your tools** - vim, VS Code, grep, git - whatever you prefer  
 - **No context switching** - Stay in terminal, delegate to LLM
 - **Git history** - Every change tracked, reviewable, revertable
-- **Fast** - Grep thousands of tickets instantly, no waiting for Jira
+- **Fast** - Grep thousands of tickets instantly
 
-### For Managers
-- **Still have Jira** - Bidirectional sync means nothing changes for non-developers
+### For Teams
+- **Optional sync** - Bidirectional sync available for external systems
 - **Better data** - Developers actually log time because it's easy
-- **Resilience** - Team keeps working even when Jira is down
+- **Resilience** - Distributed git means no single point of failure
 - **Transparency** - All changes in git, auditable, searchable
 
 ## Documentation Navigator
@@ -169,15 +169,15 @@ app-tickets/                    # Your ticket repository
     └── sprints/               # Sprint definitions
 ```
 
-### The Sync
+### The Sync (Optional)
 
 ```
-Developer ─┬─> Edit Markdown ──> Git Commit ──> Sync Server ──> Jira
+Developer ─┬─> Edit Markdown ──> Git Commit ──> Sync Server ──> External System
            │
-           └─> tract CLI ──────> Sync Server ──┬─> Jira (online)
+           └─> tract CLI ──────> Sync Server ──┬─> Remote (online)
                                                 └─> Queue (offline)
 
-Jira ──> Webhook ──> Sync Server ──> Git Commit ──> Developer pulls
+External System ──> Webhook ──> Sync Server ──> Git Commit ──> Developer pulls
 ```
 
 ### The Magic
@@ -191,13 +191,13 @@ Jira ──> Webhook ──> Sync Server ──> Git Commit ──> Developer pu
 
 ### Core
 ✅ **Markdown + Frontmatter** - Tickets are readable text files  
-✅ **Bidirectional Jira Sync** - Changes flow both ways  
+✅ **Optional Sync** - Bidirectional sync with external systems  
 ✅ **Git-based** - Full history, branches, pull requests  
-✅ **Offline-capable** - Create tickets when Jira is down  
+✅ **Offline-capable** - Create tickets without network access  
 
 ### Time Tracking
 ✅ **Simple logging** - `tract log APP-3350 2h "what you did"`  
-✅ **Instant Jira sync** - Managers see time immediately  
+✅ **Optional sync** - Time tracking syncs to external systems  
 ✅ **Timesheet reports** - Daily/weekly summaries with warnings  
 ✅ **Monthly archives** - JSONL format for easy analysis  
 
@@ -208,28 +208,28 @@ Jira ──> Webhook ──> Sync Server ──> Git Commit ──> Developer pu
 ✅ **Scriptable** - All commands designed for automation  
 
 ### Developer Experience
-✅ **Fast search** - `grep` beats Jira search by 100x  
+✅ **Fast search** - Local grep, no web UI  
 ✅ **Bulk operations** - `sed`, `awk`, shell scripts work  
 ✅ **Your editor** - vim, VS Code, emacs, whatever  
 ✅ **Diff-friendly** - See exactly what changed  
 
 ## Use Cases
 
-### "Jira is down again"
-**Before:** Developers blocked, no work can be tracked  
-**With Tract:** Create tickets offline, auto-sync when Jira returns
-
 ### "I need to update 50 tickets"
-**Before:** Click...click...click... for 2 hours  
+**Problem:** Web UIs require clicking each ticket individually  
 **With Tract:** `sed -i 's/sprint: 6/sprint: 7/' issues/*.md && git push`
 
 ### "What did I work on last week?"
-**Before:** Search Jira history, piece it together  
+**Problem:** Searching through web history, piecing it together  
 **With Tract:** `git log --since="1 week ago" --author=me`
 
 ### "I want to work on the train (no internet)"
-**Before:** Can't access anything  
+**Problem:** Web-based systems require constant connectivity  
 **With Tract:** Full repo locally, sync when back online
+
+### "Show me all high-priority security bugs"
+**Problem:** Complex web UI filters, slow search  
+**With Tract:** `grep -l "priority: high" issues/*.md | xargs grep "type: security"`
 
 ## Documentation
 

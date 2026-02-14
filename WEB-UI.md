@@ -257,18 +257,18 @@ UI is responsive:
 - [ ] Keyboard shortcuts
 - [ ] Bulk ticket operations
 
-## Comparison to Jira
+## Design Goals
 
-| Feature | Jira | Tract Web UI |
-|---------|------|-------------|
-| **Speed** | Slow | Fast |
-| **Complexity** | High | Minimal |
-| **Dependencies** | Many | Few |
-| **Cost** | €450/seat | Free |
-| **Hosting** | Cloud | Self-hosted |
-| **Data** | Database | Git + Markdown |
-| **Offline** | No | Yes (with git) |
-| **LLM-native** | No | Yes |
+| Goal | Tract Approach |
+|------|----------------|
+| **Speed** | Fast, minimal |
+| **Complexity** | Simple, focused |
+| **Dependencies** | Few |
+| **Cost** | Open source |
+| **Hosting** | Self-hosted |
+| **Data** | Git + Markdown |
+| **Offline** | Yes (with git) |
+| **LLM-native** | Yes |
 
 ---
 
