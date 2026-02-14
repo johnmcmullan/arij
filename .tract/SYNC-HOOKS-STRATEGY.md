@@ -412,13 +412,20 @@ sync:
     # normalize-labels: skip (already normalized from import)
 ```
 
-### Periodic Cleanup
+### ~~Periodic Cleanup~~ (BAD IDEA - REMOVED)
+
+**Don't do this:**
 ```bash
-# CI/CD monthly job
-tract import --update-existing --limit 1000
-# Re-runs all hooks on all tickets
-# Catches any drift from sync
+# Monthly cron job (NO!)
+tract import --update-existing
 ```
+
+**Why periodic jobs are bad:**
+- Run once: Works, you fix issues, move on ✓
+- Run always: Gets battle-tested, very reliable ✓
+- Run periodically: Fails in new ways each time, nobody notices ✗
+
+**Cron doesn't solve this. It creates silent failures.**
 
 ---
 
