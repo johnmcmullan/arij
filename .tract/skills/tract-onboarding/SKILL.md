@@ -19,6 +19,22 @@ Guide users through setting up a new Tract project — either with Jira sync or 
 
 ## Core Workflow
 
+### Step 0: Verify This is NOT Already a Tract Project
+
+**Before onboarding, check:**
+```bash
+ls .tract/config.yaml 2>/dev/null
+```
+
+**If .tract/ exists:**
+- This is already a Tract project
+- User doesn't need onboarding
+- Switch to tract-schema or tract-doctor skill instead
+
+**If .tract/ does NOT exist:**
+- Perfect! Proceed with onboarding.
+- This directory will become a Tract project.
+
 ### Step 1: Determine Mode
 
 Ask the user which setup mode they want:
