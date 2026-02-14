@@ -1,12 +1,45 @@
 # Sync Requirements & Workflow
 
-**Problem:** Users try to import tickets before sync is configured, get confusing errors.
+**Clarification:** Import has TWO modes - one-time migration vs ongoing sync.
 
-## Current Issues
+## Two Import Modes
 
-1. **import command errors late** - Asks for credentials, then fails with "Jira URL not found"
-2. **Onboarding flow unclear** - Local-only mode mentions importing (but skips it)
-3. **No clear guard** - Nothing prevents `tract import` without sync configured
+### Mode 1: One-Time Import (Migration to Tract-Only)
+
+**Use case:** "I have 500 Jira tickets. Import them once. Then I'm done with Jira forever."
+
+```bash
+tract import \
+  --jira https://jira.company.com \
+  --project APP \
+  --user you@company.com \
+  --token <api-token>
+
+# Downloads all tickets
+# Does NOT configure ongoing sync
+# After this: Tract-only (no Jira)
+```
+
+**This is MIGRATION** - grab data from Jira, then pure Tract.
+
+### Mode 2: Ongoing Sync (Bidirectional)
+
+**Use case:** "Keep Jira and Tract in sync. Managers use Jira, developers use Tract."
+
+```yaml
+# .tract/config.yaml
+jira:
+  url: https://jira.company.com
+  project: APP
+sync:
+  enabled: true
+```
+
+```bash
+tract import  # Uses config, expects ongoing sync
+```
+
+**This is INTEGRATION** - parallel Jira + Tract usage.
 
 ## Solution: Clear Guards & Messaging
 
@@ -53,58 +86,42 @@ Capabilities:
   ✗ Push to Jira (sync required)
 ```
 
-### 3. Import Command Guard
+### 3. Import Command (Two Modes)
 
 ```javascript
 // commands/import.js
 async function importCommand(options) {
   const tractDir = path.resolve(options.tract || '.');
-  
-  // Load config FIRST
-  const configPath = path.join(tractDir, '.tract', 'config.yaml');
-  if (!fs.existsSync(configPath)) {
-    console.error(chalk.red(`❌ Error: .tract/config.yaml not found`));
-    console.error(chalk.yellow('   Run: tract onboard'));
-    process.exit(1);
-  }
-
   const config = yaml.load(fs.readFileSync(configPath, 'utf8'));
   
-  // Check sync configuration EARLY
-  const jiraUrl = config.jira?.url;
-  const syncEnabled = config.sync?.enabled !== false; // Default true if not set
+  // Two modes:
+  // 1. One-time import: --jira flag provided (migration)
+  // 2. Ongoing sync: Use config (bidirectional)
   
-  if (!jiraUrl || jiraUrl === 'null') {
-    console.error(chalk.red('❌ Error: Sync not configured'));
-    console.error(chalk.yellow('\nThis is a local-only Tract project.'));
-    console.error(chalk.yellow('To import from Jira, you need to configure sync first.\n'));
-    console.error(chalk.bold('Steps to enable sync:\n'));
-    console.error(chalk.gray('1. Edit .tract/config.yaml'));
-    console.error(chalk.gray('   jira:'));
-    console.error(chalk.gray('     url: https://jira.company.com'));
-    console.error(chalk.gray('     project: APP'));
-    console.error(chalk.gray(''));
-    console.error(chalk.gray('2. Set credentials (one of):'));
-    console.error(chalk.gray('   export JIRA_USERNAME=you@company.com'));
-    console.error(chalk.gray('   export JIRA_TOKEN=<api-token>'));
-    console.error(chalk.gray(''));
-    console.error(chalk.gray('3. Try import again:'));
-    console.error(chalk.gray('   tract import'));
-    console.error(chalk.gray(''));
-    console.error(chalk.yellow('Or use: tract setup-sync (guided setup)\n'));
+  let jiraUrl = options.jira || config.jira?.url;
+  const projectKey = options.project || config.project;
+  
+  if (!jiraUrl) {
+    console.error(chalk.red('❌ Error: Jira URL required\n'));
+    console.error(chalk.yellow('Two ways to import:\n'));
+    console.error(chalk.bold('Option 1: One-time import (migration)\n'));
+    console.error(chalk.gray('   tract import \\'));
+    console.error(chalk.gray('     --jira https://jira.company.com \\'));
+    console.error(chalk.gray('     --project APP \\'));
+    console.error(chalk.gray('     --user you@company.com \\'));
+    console.error(chalk.gray('     --token <token>\n'));
+    console.error(chalk.bold('Option 2: Ongoing sync (edit config first)\n'));
+    console.error(chalk.gray('   tract import\n'));
     process.exit(1);
   }
   
-  // NOW ask for credentials (we know sync is configured)
-  const username = options.user || process.env.JIRA_USERNAME;
-  const password = options.password || process.env.JIRA_PASSWORD;
-  const token = options.token || process.env.JIRA_TOKEN;
-
-  if (!username || !(password || token)) {
-    console.error(chalk.red('❌ Error: Jira credentials required'));
-    console.error(chalk.yellow('   Set JIRA_USERNAME and JIRA_TOKEN environment variables'));
-    console.error(chalk.yellow('   Or use --user and --token options'));
-    process.exit(1);
+  const isOneTimeImport = !!options.jira;
+  
+  if (isOneTimeImport) {
+    console.log('📦 One-Time Import (Migration to Tract-only)');
+    console.log('No ongoing sync will be configured.\n');
+  } else {
+    console.log('🔄 Import with Sync Configured\n');
   }
   
   // ... proceed with import
@@ -224,15 +241,21 @@ sync:
 
 ### 7. Command Requirements Matrix
 
-| Command | Local-only | Sync Required |
-|---------|-----------|---------------|
-| `tract create` | ✅ Works | ✅ Works + syncs |
-| `tract log` | ✅ Works | ✅ Works + syncs |
-| `tract onboard --local` | ✅ Works | N/A |
-| `tract onboard --jira <url>` | N/A | ✅ Configures |
-| `tract import` | ❌ Blocked | ✅ Works |
-| `tract setup-sync` | ✅ Configures | ✅ Reconfigures |
-| `tract doctor` | ✅ Shows status | ✅ Shows status |
+| Command | Local-only | One-Time Import | Ongoing Sync |
+|---------|-----------|-----------------|--------------|
+| `tract create` | ✅ Works | ✅ Works | ✅ Works + syncs |
+| `tract log` | ✅ Works | ✅ Works | ✅ Works + syncs |
+| `tract onboard --local` | ✅ Creates | N/A | N/A |
+| `tract onboard --jira <url>` | N/A | N/A | ✅ Configures |
+| `tract import` (no flags) | ❌ Blocked | N/A | ✅ Works |
+| `tract import --jira <url>` | N/A | ✅ Works | ✅ Works |
+| `tract setup-sync` | ✅ Configures | N/A | ✅ Reconfigures |
+| `tract doctor` | ✅ Shows status | ✅ Shows status | ✅ Shows status |
+
+**Key insight:**
+- "Local-only" = Created from scratch, no external data
+- "One-time import" = Migrated from Jira, now Tract-only
+- "Ongoing sync" = Parallel Jira + Tract usage
 
 ### 8. Error Messages (Improved)
 
@@ -243,21 +266,28 @@ sync:
 
 **After:**
 ```
-❌ Error: Sync not configured
+❌ Error: Jira URL required
 
-This is a local-only Tract project.
-To import from Jira, configure sync first:
+Two ways to import:
 
-  tract setup-sync
+Option 1: One-time import (migration to Tract-only)
+  tract import \
+    --jira https://jira.company.com \
+    --project APP \
+    --user you@company.com \
+    --token <token>
+  
+  Downloads tickets once, no ongoing sync.
 
-Or manually edit .tract/config.yaml:
-  jira:
-    url: https://jira.company.com
-    project: APP
-
-Then retry:
-  tract import
+Option 2: Ongoing sync (bidirectional)
+  1. Edit .tract/config.yaml (add jira.url)
+  2. Set credentials
+  3. tract import
 ```
+
+**Terminology:**
+- ❌ "Local-only" (wrong - implies no external data at all)
+- ✅ "Tract-only" (right - migrated from Jira, now pure Tract)
 
 ## Implementation Priority
 
