@@ -298,6 +298,76 @@ Onboarding succeeded when:
 - ✓ Git repository initialized
 - ✓ `tract doctor` passes (or warnings only)
 
+## Adding Jira Later (Post-Local-Only Onboarding)
+
+If user onboarded with `--local` and now wants Jira sync:
+
+### Quick Migration Steps
+
+**1. Update config:**
+```bash
+vim .tract/config.yaml
+```
+Add Jira settings:
+```yaml
+jira:
+  url: https://jira.company.com
+  project: APP
+
+sync:
+  enabled: true
+```
+
+**2. Set credentials:**
+```bash
+export JIRA_USERNAME=john.mcmullan
+export JIRA_TOKEN=your-api-token
+```
+
+**3. Import existing Jira tickets:**
+```bash
+tract import --status open
+```
+
+**4. Enable sync server:**
+```bash
+export TRACT_SYNC_SERVER=http://tract-server:3100
+```
+
+**5. Verify:**
+```bash
+tract doctor
+# Should show:
+# ✓ Jira configured
+# ✓ Sync server reachable
+```
+
+**6. Test sync:**
+```bash
+# Edit a ticket
+vim issues/APP-1.md
+git commit -am "Update APP-1: test sync"
+git push
+
+# Check Jira - should see changes
+```
+
+### Common Migration Questions
+
+**Q: Will my local tickets sync to Jira?**
+A: Yes, when you push. Sync server creates them in Jira.
+
+**Q: Will time logs sync?**
+A: Yes, on next push. Already-logged time appears in Jira.
+
+**Q: What about conflicts?**
+A: Import keeps local version by default. Delete local file first to use Jira version.
+
+**Q: Can I go back to local-only?**
+A: Yes, set `sync.enabled: false` in config.
+
+For complete migration guide, load: `references/jira-later-migration.md`
+
 ## Post-Onboarding
 
 Once onboarding completes, transition to:
