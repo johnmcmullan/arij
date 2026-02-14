@@ -170,22 +170,18 @@ sync:
 - No drift (labels local) ✓
 - No periodic job needed ✓
 
-## Alternative: Normalize at Sync Point (Not Hook)
+## Alternative: Forward Mapping Only (If You Must Sync Labels)
 
-**If you must sync labels, normalize IN the sync logic:**
+**Architect's approach:** "We could get the labels right in Tract for new tickets, but not the other way around. Hard cheese for people in Jira!"
 
+**Forward mapping (Jira → Tract):**
 ```javascript
 // tract-sync/lib/field-mapper.js
 
 function mapJiraToTract(jiraIssue, config) {
-  const tractTicket = {
-    title: jiraIssue.fields.summary,
-    status: mapStatus(jiraIssue.fields.status.name),
-    assignee: jiraIssue.fields.assignee?.name,
-    // ...
-  };
+  // ...
   
-  // If syncing labels, normalize them immediately
+  // Normalize labels coming FROM Jira
   if (config.sync?.sync_labels) {
     const labels = jiraIssue.fields.labels || [];
     tractTicket.labels = normalizeLabels(labels, config);
@@ -199,30 +195,55 @@ function normalizeLabels(labels, config) {
   const labelCase = config.labels?.case || 'lowercase';
   
   return labels
-    .map(label => mappings[label] || label)  // Apply mappings
-    .map(label => {
-      switch (labelCase) {
-        case 'lowercase': return label.toLowerCase();
-        case 'uppercase': return label.toUpperCase();
-        default: return label;
-      }
-    })
+    .map(label => mappings[label] || label)  // Apply forward mapping
+    .map(label => labelCase === 'lowercase' ? label.toLowerCase() : label)
     .filter((label, index, arr) => 
       arr.findIndex(l => l.toLowerCase() === label.toLowerCase()) === index
-    )  // Remove duplicates
-    .sort();  // Sort
+    )
+    .sort();
 }
 ```
 
-**Why this is better:**
-- Normalization happens DURING sync (not after)
-- No separate hook needed
-- Always consistent
-- Fast (only the one ticket)
+**Reverse mapping (Tract → Jira):** **DON'T DO IT**
 
-**But still:**
-- Only normalizes the ticket being synced
-- Old tickets might have unnormalized labels
+```javascript
+function mapTractToJira(tractTicket, config) {
+  // Send normalized labels to Jira as-is
+  return {
+    labels: tractTicket.labels  // [performance, tbricks]
+    // NOT: [Performance, TBricks] - no reverse mapping
+  };
+}
+```
+
+**Result:**
+- Jira imports "TBricks" → Tract gets "tbricks" ✓
+- Tract creates "tbricks" → Jira gets "tbricks" (lowercase)
+- Jira users see: "tbricks" (normalized)
+
+**Hard cheese for Jira users!** They'll adapt.
+
+**Why this is better than reverse mapping:**
+- Simpler (one-way only)
+- Consistent (Tract is source of truth for format)
+- No complex bidirectional config
+- Gradually standardizes Jira too
+
+**Config:**
+```yaml
+labels:
+  case: lowercase
+  mappings:
+    TBricks: tbricks     # Forward only
+    Tbricks: tbricks     # No reverse needed
+    Performance: performance
+```
+
+**Benefits:**
+- New Jira labels → Normalized in Tract ✓
+- New Tract labels → Lowercase in Jira ✓
+- Eventually Jira gets normalized too ✓
+- No reverse_mappings complexity ✓
 
 ## The Real Answer
 

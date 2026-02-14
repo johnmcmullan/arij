@@ -44,40 +44,18 @@ Jira: labels: [performance, tbricks]  # Now lowercase
 
 **Use case:** You control Jira, want to standardize everywhere
 
-## Option B: Reverse Mapping (Preserve Jira Format)
+## ~~Option B: Reverse Mapping~~ (REMOVED - Too Complex)
 
-**Config:**
-```yaml
-labels:
-  case: lowercase
-  mappings:
-    # Forward (import)
-    TBricks: tbricks
-    Performance: performance
-  
-  reverse_mappings:
-    # Reverse (sync back)
-    tbricks: TBricks
-    performance: Performance
-```
+**We're not doing this.**
 
-**Flow:**
-```
-Jira → Tract: TBricks → tbricks (normalize)
-Tract → Jira: tbricks → TBricks (reverse)
-```
+**Architect's verdict:** "Hard cheese for people in Jira!"
 
-**Pros:**
-- Jira stays unchanged (other users don't see changes)
-- Tract gets normalized labels (for queries)
-- Best of both worlds
+**Why reverse mapping is bad:**
+- Complex config (maintain two mappings)
+- Divergence risk (mappings get out of sync)
+- Unnecessary (Jira users can adapt to lowercase)
 
-**Cons:**
-- More complex config
-- Need to maintain mappings in both directions
-- Labels can diverge if not careful
-
-**Use case:** Ongoing Jira sync, Jira users expect original format
+**Better:** Forward mapping only (Jira → Tract normalizes, Tract → Jira sends as-is)
 
 ## Option C: Don't Sync Labels (Local Metadata)
 
