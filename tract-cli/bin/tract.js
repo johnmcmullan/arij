@@ -104,13 +104,15 @@ program
 
 // NEW: Board command - Beautiful TUI dashboard
 program
-  .command('board')
+  .command('board [config]')
   .description('Show beautiful TUI dashboard (view-only, real-time, btop-style)')
   .option('--sprint <sprint>', 'Filter by sprint (number, latest, current, all)')
   .option('--label <labels>', 'Filter by labels (comma-separated)')
-  .option('--assignee <name>', 'Filter by assignee (@me for current user)')
+  .option('--assignee <name>', 'Filter by assignee (@me, ~me, or username)')
   .option('--status <statuses>', 'Include only these statuses')
   .option('--exclude-status <statuses>', 'Exclude these statuses')
+  .option('--save <name>', 'Save current filters as named board config')
+  .option('--list', 'List saved board configurations')
   .option('--no-watch', 'Disable real-time file watching')
   .action(require('../commands/board'));
 
