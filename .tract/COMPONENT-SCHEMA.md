@@ -11,7 +11,10 @@ Based on common practices (Jira, Azure DevOps, GitHub Projects):
 | `name` | string | Component identifier (YAML key) | `auth-service` |
 | `description` | string | What this component does | `Authentication and authorization service` |
 | `owner` | string | Person/team responsible | `john.mcmullan` |
-| `path` | string | Code location (relative to repo root) | `src/auth/` |
+| `path` | string | Main code location (single path) | `src/auth/` |
+| `paths` | array | Multiple locations (use instead of `path`) | `[src/auth/, test/auth/]` |
+
+**Note:** Use either `path` (single) OR `paths` (multiple), not both.
 
 ### Optional Fields
 
@@ -30,16 +33,20 @@ Based on common practices (Jira, Azure DevOps, GitHub Projects):
 
 ```yaml
 components:
-  # Backend services
+  # Backend services (multiple paths)
   auth-service:
     description: Authentication and authorization service
     owner: john.mcmullan
-    path: services/auth/
+    paths:
+      - services/auth/          # Main code
+      - test/integration/auth/  # Integration tests
+      - docs/auth/              # Documentation
     language: typescript
     team: platform-team
     status: active
     docs: https://docs.company.com/auth
     
+  # Simple component (single path)
   api-gateway:
     description: API gateway and request routing
     owner: sarah.jones
@@ -48,19 +55,27 @@ components:
     team: platform-team
     status: active
     
+  # Multiple paths with named sections
   payment-processor:
     description: Payment processing and billing
     owner: mike.smith
-    path: services/payments/
+    paths:
+      - src/payments/           # Core logic
+      - test/unit/payments/     # Unit tests
+      - test/e2e/payments/      # End-to-end tests
+      - config/payments/        # Configuration
     language: python
     team: fintech-squad
     status: active
     
-  # Frontend
+  # Frontend with tests
   web-app:
     description: Main web application (React SPA)
     owner: dave.wilson
-    path: apps/web/
+    paths:
+      - apps/web/src/           # Source code
+      - apps/web/test/          # Tests
+      - apps/web/e2e/           # E2E tests (Cypress)
     language: typescript
     team: frontend-squad
     status: active
@@ -68,12 +83,14 @@ components:
   mobile-app:
     description: Mobile application (React Native)
     owner: lisa.brown
-    path: apps/mobile/
+    paths:
+      - apps/mobile/            # Main code
+      - apps/mobile/__tests__/  # Jest tests
     language: typescript
     team: mobile-squad
     status: active
     
-  # Infrastructure
+  # Infrastructure (single path is fine)
   database:
     description: PostgreSQL database schemas and migrations
     owner: john.mcmullan
@@ -148,14 +165,49 @@ components:
     path: /
 ```
 
+## Path vs Paths
+
+**Use `path` (singular) when:**
+- Component code is in one directory
+- Simple structure
+- Example: `path: src/auth/`
+
+**Use `paths` (plural) when:**
+- Component spans multiple directories
+- Tests in separate location
+- Docs, config, etc. in different places
+- Example: `paths: [src/auth/, test/auth/, docs/auth/]`
+
+**Examples:**
+
+```yaml
+# Simple: single path
+simple-lib:
+  description: Utility library
+  owner: john
+  path: lib/utils/
+
+# Complex: multiple paths
+complex-service:
+  description: Multi-tier service
+  owner: sarah
+  paths:
+    - src/service/          # Main code
+    - test/unit/service/    # Unit tests
+    - test/integration/     # Integration tests
+    - migrations/           # DB migrations
+    - docs/service/         # Documentation
+```
+
 ## Best Practices
 
 1. **Always include description** - Future you will forget what "XYZ service" does
 2. **Assign clear owners** - One person/team responsible
 3. **Use relative paths** - Makes repo portable
-4. **Document status** - Mark deprecated/experimental components
-5. **Link to docs** - Architecture docs, API specs, etc.
-6. **Hierarchical when needed** - Don't nest too deep (2-3 levels max)
+4. **Use `paths` for tests** - Keep test locations explicit
+5. **Document status** - Mark deprecated/experimental components
+6. **Link to docs** - Architecture docs, API specs, etc.
+7. **Hierarchical when needed** - Don't nest too deep (2-3 levels max)
 
 ## Validation
 

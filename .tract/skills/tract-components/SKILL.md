@@ -52,7 +52,7 @@ Ask the user for **minimum required fields:**
 
 ### Step 3: Create or Update components.yaml
 
-**For first component:**
+**For simple component (single path):**
 
 ```yaml
 components:
@@ -60,6 +60,22 @@ components:
     description: What it does
     owner: username
     path: src/component/
+    language: typescript
+    team: platform-team
+    status: active
+```
+
+**For component with multiple paths:**
+
+```yaml
+components:
+  component-name:
+    description: What it does
+    owner: username
+    paths:
+      - src/component/      # Main code
+      - test/component/     # Tests
+      - docs/component/     # Documentation
     language: typescript
     team: platform-team
     status: active
@@ -137,6 +153,13 @@ A few questions:
 4. TypeScript
 ```
 
+**LLM asks follow-up:**
+```
+Do you have tests in a separate directory? (y/n)
+```
+
+**User:** "Yes, test/auth/"
+
 **LLM creates:**
 
 `.tract/components.yaml`:
@@ -145,7 +168,9 @@ components:
   auth-service:
     description: User authentication and authorization service
     owner: john.mcmullan
-    path: src/auth/
+    paths:
+      - src/auth/           # Main code
+      - test/auth/          # Tests
     language: typescript
     status: active
 ```
@@ -213,7 +238,22 @@ You can now assign tickets to this component:
    find services/auth -type f | sed 's/.*\.//' | sort | uniq -c | sort -rn | head -1
    ```
 
-6. **Generate components.yaml with all components**
+6. **Ask about test paths:**
+   ```
+   For each component, do you have separate test directories?
+   - services/auth/ → tests in test/auth/? (y/n)
+   ```
+
+7. **Generate components.yaml with all components**
+
+**Use `paths` (array) when:**
+- Tests in separate directory
+- Multiple code locations
+- Docs/config in different places
+
+**Use `path` (single) when:**
+- Simple, single directory
+- All files colocated
 
 ## Hierarchical Components
 
