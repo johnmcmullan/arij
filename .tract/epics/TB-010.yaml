@@ -1,0 +1,16 @@
+id: TB-010
+name: FIX Protocol Stability
+goal: Improve reliability and performance of FIX session management
+status: in-progress
+owner: john
+start: 2026-01-15
+target: 2026-03-30
+notes: |
+  Major initiative to address recurring FIX session drops during high-volume periods.
+  Includes heartbeat tuning, TCP optimizations, and enhanced monitoring.
+  
+  Key deliverables:
+  - Fix heartbeat timing issues during market close
+  - Implement TCP_NODELAY on critical sockets
+  - Enhanced logging and monitoring for session diagnostics
+  - Load testing against LSE and Euronext simulators

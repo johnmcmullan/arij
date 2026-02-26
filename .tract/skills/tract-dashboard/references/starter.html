@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Tract Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #f5f5f5; color: #1a1a1a; padding: 24px; }
+    h1 { font-size: 1.4rem; margin-bottom: 20px; }
+    .cards { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 28px; }
+    .card { background: #fff; border-radius: 8px; padding: 20px 24px; min-width: 140px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .card .num { font-size: 2rem; font-weight: 700; color: #0066cc; }
+    .card .label { font-size: 0.8rem; color: #666; text-transform: uppercase; letter-spacing: 0.05em; }
+    .chart-box { background: #fff; border-radius: 8px; padding: 20px;
+                 box-shadow: 0 1px 3px rgba(0,0,0,0.1); max-width: 600px; }
+    .live { font-size: 0.75rem; color: #888; margin-top: 20px; }
+    .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+           background: #22c55e; margin-right: 6px; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  </style>
+</head>
+<body>
+  <h1>Tract Dashboard</h1>
+  <div class="cards" id="cards"></div>
+  <div class="chart-box">
+    <canvas id="chart" height="200"></canvas>
+  </div>
+  <p class="live"><span class="dot"></span>Live — updates automatically when tickets change</p>
+
+  <script>
+    let chartInstance = null;
+
+    async function loadTickets() {
+      const tickets = await fetch('/api/tickets').then(r => r.json());
+
+      // Count by status
+      const counts = tickets.reduce((acc, t) => {
+        acc[t.status] = (acc[t.status] || 0) + 1;
+        return acc;
+      }, {});
+
+      // Status cards
+      const statuses = ['todo', 'in-progress', 'in-review', 'done', 'blocked'];
+      const labels = { 'todo': 'To Do', 'in-progress': 'In Progress',
+                       'in-review': 'In Review', 'done': 'Done', 'blocked': 'Blocked' };
+      document.getElementById('cards').innerHTML = statuses
+        .filter(s => counts[s])
+        .map(s => `<div class="card">
+          <div class="num">${counts[s]}</div>
+          <div class="label">${labels[s] || s}</div>
+        </div>`).join('');
+
+      // Bar chart
+      const chartLabels = Object.keys(counts);
+      const chartData = Object.values(counts);
+      const colors = chartLabels.map(s => ({
+        'todo': '#94a3b8', 'in-progress': '#3b82f6',
+        'in-review': '#f59e0b', 'done': '#22c55e', 'blocked': '#ef4444'
+      }[s] || '#aaa'));
+
+      if (chartInstance) chartInstance.destroy();
+      chartInstance = new Chart(document.getElementById('chart'), {
+        type: 'bar',
+        data: {
+          labels: chartLabels,
+          datasets: [{ label: 'Tickets', data: chartData, backgroundColor: colors }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+        }
+      });
+    }
+
+    // Initial load
+    loadTickets();
+
+    // Live reload via SSE
+    const es = new EventSource('/api/events');
+    es.onmessage = () => loadTickets();
+    es.onerror = () => { /* auto-reconnects */ };
+  </script>
+</body>
+</html>

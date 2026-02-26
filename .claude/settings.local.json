@@ -1,0 +1,41 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C /home/john/work/tract log --oneline)",
+      "Bash(node --check:*)",
+      "Bash(fuser:*)",
+      "Bash(chmod:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(grep:*)",
+      "Bash(node -e \"require\\(''/home/john/work/tract/tract-cli/lib/ticket-loader.js''\\); console.log\\(''ticket-loader OK''\\)\")",
+      "Bash(node -e \"require\\(''/home/john/work/tract/tract-cli/commands/serve.js''\\); console.log\\(''serve OK''\\)\")",
+      "Bash(node -c:*)",
+      "Bash(node -e:*)",
+      "Bash(node:*)",
+      "Bash(curl:*)",
+      "Bash(__NEW_LINE_16c490ed7d715099__ echo \"\")",
+      "Bash(__NEW_LINE_56e20b7be08bbaa0__ echo \"\")",
+      "Bash(__NEW_LINE_6ce37e66798a1731__ echo \"\")",
+      "Bash(__NEW_LINE_0e79ab9740d371c3__ echo \"\")",
+      "Bash(__NEW_LINE_5ecb40520be38714__ echo \"\")",
+      "Bash(kill:*)",
+      "Bash(wait:*)",
+      "Bash(npm test:*)",
+      "Bash(npx jest:*)",
+      "Bash(# Quick end-to-end: start server with dashboards in place, hit both URLs fuser -k 7766/tcp ; sleep 0.5 cp /home/john/work/tract/tract-cli/lib/dashboards/kanban.html /home/john/work/tract/dashboards/kanban.html cp /home/john/work/tract/tract-cli/lib/dashboards/scrum.html /home/john/work/tract/dashboards/scrum.html node /home/john/work/tract/tract-cli/bin/tract.js serve --port 7766 & sleep 2 echo \"\"=== kanban.html \\(first line\\) ===\"\" curl -s localhost:7766/dashboards/kanban.html)",
+      "Bash(__NEW_LINE_101a18c6c7a99966__ echo \"=== scrum.html \\(first line\\) ===\")",
+      "Bash(__NEW_LINE_1548ef7ff9e5937d__ echo \"=== index lists both ===\")",
+      "Bash(python3:*)",
+      "Bash(pkill:*)",
+      "Bash(git rm:*)",
+      "Bash(done)",
+      "Bash(git -C /home/john/work/tract ls-files \"*.md\")",
+      "Bash(git mv:*)",
+      "Bash(git -C /home/john/work/tract ls-files:*)",
+      "Bash(wc:*)",
+      "Bash(git stash:*)"
+    ]
+  }
+}

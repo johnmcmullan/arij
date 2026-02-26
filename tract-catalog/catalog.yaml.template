@@ -1,0 +1,47 @@
+# /opt/tract/catalog.yaml
+#
+# Tract project catalog — admin-editable, no restart required.
+# Changes take effect on the next request to GET /catalog.
+#
+# Fields used by `tract clone` (developer CLI):
+#   repo_url:   SSH or HTTP URL used to clone the ticket repo
+#   depends_on: List of project prefixes resolved recursively on clone
+#
+# Fields used by tract-sync (server-side daemon):
+#   sync_path:  Absolute path to the working copy on the server.
+#               If absent, the project is developer-facing only (no sync).
+#               The daemon reads this file directly — no restart required
+#               when you add a new project (restart tract-sync after adding).
+#
+# Developers never edit this file directly. The tract-catalog server serves it at:
+#   GET http://tract-server:8080/catalog
+
+workspace:
+  name: acme
+
+# Base SSH prefix for all repos (optional convenience — you can also use full URLs in repo_url:)
+git_base: git@tract-server:/opt/tract/git/
+
+projects:
+  - name: app
+    prefix: APP
+    repo_url: git@tract-server:/opt/tract/git/app-tickets.git
+    sync_path: /opt/tract/app-tickets        # server-side working copy (used by tract-sync)
+    description: Main application
+
+  - name: shared-ui
+    prefix: SHARED-UI
+    repo_url: git@tract-server:/opt/tract/git/shared-ui-tickets.git
+    sync_path: /opt/tract/shared-ui-tickets
+    description: Shared UI components
+
+  - name: trading
+    prefix: TRADING
+    repo_url: git@tract-server:/opt/tract/git/trading-tickets.git
+    sync_path: /opt/tract/trading-tickets
+    description: Trading platform
+    depends_on: [APP, SHARED-UI]
+    # When a developer runs `tract clone TRADING`, they also get APP and SHARED-UI.
+
+shared:
+  worklogs: .tract/worklogs/

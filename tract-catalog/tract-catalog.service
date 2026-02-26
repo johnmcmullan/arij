@@ -1,0 +1,39 @@
+[Unit]
+Description=Tract Catalog Server
+Documentation=https://github.com/johnmcmullan/tract
+After=network.target
+
+[Service]
+Type=simple
+User=tract
+WorkingDirectory=/opt/tract/tract-catalog
+ExecStart=/usr/bin/node /opt/tract/tract-catalog/server.js
+Restart=on-failure
+RestartSec=5
+
+# ── Server config ──────────────────────────────────────────────────────────────
+# Environment=PORT=8080
+# Environment=CATALOG_PATH=/opt/tract/catalog.yaml
+# Environment=CLI_TGZ_PATH=/opt/tract/tract-cli-latest.tgz
+# Environment=CLI_PKG_PATH=/opt/tract/tract-cli/package.json
+
+# ── SSH known-hosts (GET /known-hosts) ───────────────────────────────────────
+# Pre-generate with: ssh-keyscan -H <your-git-server> > /opt/tract/known-hosts
+# install.sh and `tract clone` will automatically add these to ~/.ssh/known_hosts.
+# Environment=SSH_KNOWN_HOSTS_PATH=/opt/tract/known-hosts
+
+# ── Self-update webhook (POST /update) ────────────────────────────────────────
+# Set a secret to enable the endpoint; leave blank to disable it entirely.
+# Use the same secret in your GitHub/GitLab webhook configuration.
+# Environment=WEBHOOK_SECRET=change-me
+
+# ── update-server tuning ──────────────────────────────────────────────────────
+# Environment=TRACT_SOURCE_DIR=/opt/tract/source   # git checkout of the tract repo
+# Environment=TRACT_BRANCH=main                    # branch to track
+# Environment=AUTO_DEPLOY=true                     # package CLI after pull
+# Environment=AUTO_RESTART=true                    # restart this service after pull
+# Environment=UPDATE_WINDOW=02:00-06:00            # only update during this window
+#                                                  # (useful with cron; ignored by webhook)
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,97 @@
+#!/bin/bash
+#
+# Update the tract server from its git source and redeploy the CLI package.
+#
+# Can be triggered three ways:
+#   1. Automatically via POST /update webhook (GitHub, GitLab, etc.)
+#   2. On a schedule:  0 2 * * * /opt/tract/tract-catalog/update-server
+#   3. Manually:       /opt/tract/tract-catalog/update-server
+#
+# Configuration (via environment or /etc/default/tract-catalog):
+#   TRACT_SOURCE_DIR   Git checkout of the tract repo  (default: /opt/tract/source)
+#   TRACT_BRANCH       Branch to track                 (default: main)
+#   AUTO_DEPLOY        Package CLI after pull           (default: true)
+#   AUTO_RESTART       Restart systemd service after    (default: true)
+#   UPDATE_WINDOW      Only run during this time range  (default: any time)
+#                      Format: "HH:MM-HH:MM", e.g. "02:00-06:00"
+
+set -euo pipefail
+
+SOURCE_DIR="${TRACT_SOURCE_DIR:-/opt/tract/source}"
+BRANCH="${TRACT_BRANCH:-main}"
+AUTO_DEPLOY="${AUTO_DEPLOY:-true}"
+AUTO_RESTART="${AUTO_RESTART:-true}"
+UPDATE_WINDOW="${UPDATE_WINDOW:-}"
+
+LOG_PREFIX="[tract-update]"
+
+log() { echo "${LOG_PREFIX} $*"; }
+err() { echo "${LOG_PREFIX} ERROR: $*" >&2; }
+
+# ── Update window check ───────────────────────────────────────────────────────
+
+if [ -n "${UPDATE_WINDOW}" ]; then
+    NOW=$(date +%H:%M)
+    START="${UPDATE_WINDOW%-*}"
+    END="${UPDATE_WINDOW#*-}"
+
+    # Simple HH:MM comparison (works as string sort for times that don't cross midnight)
+    if [[ "${NOW}" < "${START}" || "${NOW}" > "${END}" ]]; then
+        log "Outside update window ${UPDATE_WINDOW} (now: ${NOW}). Skipping."
+        exit 0
+    fi
+fi
+
+# ── Pull latest source ────────────────────────────────────────────────────────
+
+if [ ! -d "${SOURCE_DIR}/.git" ]; then
+    err "No git repo found at TRACT_SOURCE_DIR=${SOURCE_DIR}"
+    err "Clone it first: git clone <repo-url> ${SOURCE_DIR}"
+    exit 1
+fi
+
+log "Pulling ${BRANCH} from origin..."
+cd "${SOURCE_DIR}"
+
+BEFORE=$(git rev-parse HEAD)
+git fetch --quiet origin "${BRANCH}"
+git checkout --quiet "${BRANCH}"
+git merge --quiet --ff-only "origin/${BRANCH}"
+AFTER=$(git rev-parse HEAD)
+
+if [ "${BEFORE}" = "${AFTER}" ]; then
+    log "Already up to date (${AFTER:0:8}). Nothing to do."
+    exit 0
+fi
+
+log "Updated ${BEFORE:0:8} → ${AFTER:0:8}"
+git log --oneline "${BEFORE}..${AFTER}"
+
+# ── Redeploy CLI package ──────────────────────────────────────────────────────
+
+if [ "${AUTO_DEPLOY}" = "true" ]; then
+    DEPLOY_SCRIPT="${SOURCE_DIR}/tract-catalog/deploy-cli"
+    CLI_DIR="${SOURCE_DIR}/tract-cli"
+
+    if [ ! -x "${DEPLOY_SCRIPT}" ]; then
+        err "deploy-cli not found or not executable at ${DEPLOY_SCRIPT}"
+        exit 1
+    fi
+
+    log "Deploying CLI package..."
+    "${DEPLOY_SCRIPT}" "${CLI_DIR}"
+fi
+
+# ── Restart service ───────────────────────────────────────────────────────────
+
+if [ "${AUTO_RESTART}" = "true" ]; then
+    log "Restarting tract-catalog service..."
+    if command -v systemctl >/dev/null 2>&1; then
+        systemctl restart tract-catalog
+        log "Service restarted."
+    else
+        log "systemctl not found — restart the process manually."
+    fi
+fi
+
+log "Done."

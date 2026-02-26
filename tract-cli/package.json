@@ -1,0 +1,31 @@
+{
+  "name": "@tract/cli",
+  "version": "1.0.0",
+  "description": "CLI tool for bootstrapping Tract projects from Jira",
+  "main": "index.js",
+  "bin": {
+    "tract": "./bin/tract.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "tract",
+    "jira",
+    "migration",
+    "cli"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.2",
+    "blessed": "^0.1.81",
+    "blessed-contrib": "^4.11.0",
+    "chalk": "^4.1.2",
+    "chokidar": "^5.0.0",
+    "commander": "^11.1.0",
+    "enquirer": "^2.4.1",
+    "js-yaml": "^4.1.0",
+    "ora": "^5.4.1"
+  }
+}

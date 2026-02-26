@@ -1,0 +1,37 @@
+components:
+  server:
+    path: app.js
+    owner: john
+    children:
+      routes:
+        path: app.js
+      middleware:
+        path: app.js
+  database:
+    path: db
+    owner: john
+    children:
+      schema:
+        path: db/schema.sql
+      init:
+        path: init-db.js
+      seed:
+        path: seed.js
+  views:
+    path: views
+    children:
+      layout:
+        path: views/layout.ejs
+      projects:
+        path: views/projects
+      tickets:
+        path: views/tickets
+      board:
+        path: views/board
+  frontend:
+    path: public
+    children:
+      styles:
+        path: public/css/style.css
+      board-js:
+        path: public/js/board.js

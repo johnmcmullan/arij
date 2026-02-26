@@ -1,0 +1,44 @@
+#!/bin/bash
+#
+# Deploy a new version of tract-cli to the catalog server.
+# Run this on the server whenever you want to push an update to developers.
+#
+# Usage: ./deploy-cli [tract-cli-dir]
+#
+# Default tract-cli dir: /opt/tract/tract-cli
+# Default output:        /opt/tract/tract-cli-latest.tgz
+
+set -e
+
+CLI_DIR="${1:-/opt/tract/tract-cli}"
+OUT_DIR="/opt/tract"
+DEST="${OUT_DIR}/tract-cli-latest.tgz"
+
+if [ ! -f "${CLI_DIR}/package.json" ]; then
+    echo "✗ No package.json found at ${CLI_DIR}"
+    echo "  Usage: $0 [tract-cli-dir]"
+    exit 1
+fi
+
+VERSION=$(node -e "console.log(require('${CLI_DIR}/package.json').version)")
+echo "Packaging tract-cli v${VERSION} from ${CLI_DIR}..."
+
+# Build the npm tarball
+TMP=$(mktemp -d)
+cd "${CLI_DIR}"
+npm pack --pack-destination "${TMP}" --quiet
+
+TGZ=$(ls "${TMP}"/tract-cli-*.tgz 2>/dev/null | head -n 1)
+if [ -z "${TGZ}" ]; then
+    echo "✗ npm pack produced no output"
+    exit 1
+fi
+
+mv "${TGZ}" "${DEST}"
+rm -rf "${TMP}"
+
+echo "✓ Deployed: ${DEST}"
+echo "  Version:   v${VERSION}"
+echo ""
+echo "Developers can now run:"
+echo "  tract update"
