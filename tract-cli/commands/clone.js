@@ -126,8 +126,6 @@ function updateWorkspaceYaml(workspaceRoot, projectEntries) {
 
   ws.workspace = ws.workspace || {};
   ws.projects = ws.projects || [];
-  ws.shared = ws.shared || { worklogs: '.tract/worklogs/' };
-
   for (const entry of projectEntries) {
     const existing = ws.projects.find((p) => p.prefix === entry.prefix);
     if (!existing) {
