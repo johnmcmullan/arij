@@ -87,6 +87,34 @@ tract clone TB --server reek
 
 This clones directly via SSH (`tract@reek:/opt/tract/APP`) without needing a catalog.
 
+### Step 4b: Field Detection (after clone — do this before any other work)
+
+After cloning, the sync daemon will have saved a compact ticket sample for LLM field analysis.
+Check for it and run field detection if present:
+
+```bash
+ls ~/.tract/<PREFIX>/.tract/detect-fields-payload.json
+```
+
+If the file exists:
+
+```bash
+ANTHROPIC_API_KEY=<key> tract detect-fields <PREFIX> --reuse
+```
+
+This calls Claude to identify which `customfield_NNNNN` keys map to sprint, story_points,
+epic_link, rank, etc. It outputs a `custom_field_map:` YAML block.
+
+**As the supervising LLM you should:**
+1. Run `tract detect-fields <PREFIX> --reuse` yourself (using the bash tool)
+2. Read the suggested `custom_field_map` from the output
+3. Add it under `jira:` in `~/.tract/<PREFIX>/.tract/config.yaml`
+4. Commit the change: `cd ~/.tract/<PREFIX> && git add .tract/config.yaml && git commit -m "Add custom field mappings"`
+5. Note: existing tickets were synced without custom fields. To backfill, delete the sentinel
+   and restart the daemon: `sudo -u tract rm /opt/tract/<PREFIX>/.tract/.full-sync-done && sudo systemctl restart tract-sync`
+
+**The payload file persists** — re-run `--reuse` any time to re-analyse without hitting Jira again.
+
 ### Step 5: Verify
 
 ```bash
