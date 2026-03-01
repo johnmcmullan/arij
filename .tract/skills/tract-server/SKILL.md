@@ -186,6 +186,52 @@ curl http://localhost:3200/version
 ls -la /opt/tract/tract-cli/  # confirm CLI is present
 ```
 
+## Post-Process Hooks
+
+After each sync cycle, the daemon can run arbitrary shell commands on the
+project working directory — **after files are written, before any final state is
+saved**.  Hook output is logged; non-zero exit codes produce a warning but do
+not abort the sync.
+
+### Configuring hooks
+
+**Global (all projects)** — set the env var in `/etc/tract-sync/env`:
+
+```
+POST_PROCESS_HOOKS=tract normalize-labels --tract .
+```
+
+Multiple hooks: separate with commas or newlines.
+
+**Per-project** — add to the repo's `.tract/config.yaml`:
+
+```yaml
+import:
+  hooks:
+    - tract normalize-labels --tract .
+    - my-custom-script
+```
+
+Env hooks run first; per-project hooks run after.
+
+### How hooks work
+
+1. Daemon writes/commits all Jira ticket files (per-ticket commits).
+2. Hooks run with `cwd` set to the project repo directory.
+3. After all hooks complete, `git add *` + a single commit captures any
+   file changes the hooks made (`tract-sync: post-process hooks`).
+4. If no files changed, the extra commit is skipped.
+
+### Example: label normalisation
+
+```
+POST_PROCESS_HOOKS=tract normalize-labels --tract .
+```
+
+This runs `tract normalize-labels` on every sync.  Labels are cleaned up
+(case, mappings, dedup) and committed automatically.  Run `tract normalize-labels --dry-run`
+locally first to preview.
+
 ## Security Notes
 
 - `/etc/tract/env` is readable only by root and the `tract` user (mode 640)

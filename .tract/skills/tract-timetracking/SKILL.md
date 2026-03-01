@@ -239,30 +239,41 @@ tract timesheet sarah.jones --week
 
 ## Jira Sync
 
-If sync server is configured (`TRACT_SYNC_SERVER`):
-
-**Automatic sync:**
+**Automatic sync (bidirectional):**
 ```bash
 tract log APP-1234 2h "Work description"
-# → Creates worklog in worklogs/2026-02.jsonl
-# → Commits to git
-# → Pushes to remote
-# → Sync server sends to Jira
-# → Worklog appears in Jira ticket immediately
+# → Sends worklog to sync server (POST /worklog/APP-1234)
+# → Sync server POSTs to Jira REST API
+# → Jira assigns a worklog ID (jiraId)
+# → Sync server writes the entry to worklogs/YYYY-MM.jsonl with jiraId
+# → Entry is committed to git
 ```
+
+The round-trip is complete: worklogs logged via `tract log` are stored in both
+Jira and the JSONL file with the same `jiraId`, so subsequent Jira→git syncs
+deduplicate correctly and never double-count.
+
+**Worklog lookback on first run:**
+
+On the first full sync of a project, the daemon runs a dedicated worklog query
+covering the past 90 days (configurable via `WORKLOG_LOOKBACK_DAYS` env var):
+
+```
+JQL: project = APP AND worklogDate >= -90d ORDER BY updated DESC
+```
+
+This catches worklog entries on tickets not recently updated (which wouldn't
+appear in the normal incremental sync window).
 
 **Offline mode:**
 ```bash
 # No sync server? No problem.
 tract log APP-1234 2h "Offline work"
-# → Creates worklog locally
+# → Creates worklog locally in worklogs/YYYY-MM.jsonl (no jiraId yet)
 # → Commits to git
-# → Queues in .tract/queue/ for later sync
 
-# Later, when online:
-git push
-# → Sync server processes queue
-# → Sends all queued worklogs to Jira
+# The daemon's next sync cycle detects entries without jiraId,
+# POSTs them to Jira, and rewrites the lines with jiraId.
 ```
 
 ## Conversational Time Tracking

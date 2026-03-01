@@ -393,6 +393,64 @@ priorities: [trivial, minor, major, critical, blocker]
 
 For complete config spec, load: `references/config-schema.md`
 
+## Label Normalisation
+
+Labels in Jira are free-text, so they accumulate inconsistencies over time
+(`Bug`, `bug`, `BUG`, or `backend-api` vs `backend_api`).  Tract can clean
+them up without touching Jira.
+
+### Config (`.tract/config.yaml`)
+
+```yaml
+labels:
+  case: lowercase        # lowercase | uppercase | title | none
+  mappings:
+    Bug: bug             # rename specific labels
+    backend_api: backend-api
+    FE: frontend
+```
+
+- `labels.case` — Applies after mappings; normalises the casing of all labels.
+- `labels.mappings` — Explicit rename table (case-insensitive key match).
+
+### Running the normaliser
+
+```bash
+# Preview what would change (nothing written)
+tract normalize-labels --dry-run
+
+# See per-file detail
+tract normalize-labels --dry-run --verbose
+
+# Apply
+tract normalize-labels
+```
+
+The command reads `tickets/` from the directory specified by `--tract` (defaults
+to `.`).  It:
+1. Applies `labels.mappings` renames
+2. Normalises case via `labels.case`
+3. Deduplicates (case-insensitive) and sorts alphabetically
+
+### Wiring as a post-process hook
+
+To run automatically after every Jira sync, add it to `.tract/config.yaml`:
+
+```yaml
+import:
+  hooks:
+    - tract normalize-labels --tract .
+```
+
+Or set the `POST_PROCESS_HOOKS` env var on the sync server for all projects:
+
+```
+POST_PROCESS_HOOKS=tract normalize-labels --tract .
+```
+
+Hooks run after all ticket files are written; any changes they make are
+committed as a follow-up commit `tract-sync: post-process hooks`.
+
 ## Directory Structure
 
 **Standard layout:**
