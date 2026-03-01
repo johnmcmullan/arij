@@ -189,4 +189,13 @@ program
   .option('--user <sshuser>', 'SSH user on server', 'tract')
   .action(require('../commands/auth.js'));
 
+// normalize-labels — normalise and deduplicate labels in ticket frontmatter
+program
+  .command('normalize-labels')
+  .description('Normalise labels in ticket frontmatter (case, mappings, dedup, sort)')
+  .option('--tract <dir>', 'Tract ticket repository directory (defaults to current)', '.')
+  .option('--dry-run', 'Show what would change without writing files')
+  .option('--verbose', 'Print each changed file')
+  .action(require('../commands/normalize-labels'));
+
 program.parse(process.argv);
