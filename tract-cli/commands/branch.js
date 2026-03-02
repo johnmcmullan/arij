@@ -124,12 +124,10 @@ function findTicketFile(ticketId) {
   const flat = path.join('tickets', `${ticketId}.md`);
   if (fs.existsSync(flat)) return flat;
 
-  // Sharded layout: tickets/TB-1/TB-1234.md
-  const prefix = ticketId.replace(/-\d+$/, '');
+  // Sharded layout: tickets/4/TB-1234.md (last digit of number)
   const num = ticketId.match(/-(\d+)$/)?.[1] || '';
   if (num) {
-    const shard = `${prefix}-${num[0]}`;
-    const sharded = path.join('tickets', shard, `${ticketId}.md`);
+    const sharded = path.join('tickets', num[num.length - 1], `${ticketId}.md`);
     if (fs.existsSync(sharded)) return sharded;
   }
 

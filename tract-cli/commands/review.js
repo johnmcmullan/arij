@@ -60,9 +60,8 @@ function findTicketFile(ticketId) {
   const flat = path.join('tickets', `${ticketId}.md`);
   if (fs.existsSync(flat)) return flat;
   const num = ticketId.match(/-(\d+)$/)?.[1] || '';
-  const prefix = ticketId.replace(/-\d+$/, '');
   if (num) {
-    const sharded = path.join('tickets', `${prefix}-${num[0]}`, `${ticketId}.md`);
+    const sharded = path.join('tickets', num[num.length - 1], `${ticketId}.md`);
     if (fs.existsSync(sharded)) return sharded;
   }
   if (fs.existsSync('tickets')) {
