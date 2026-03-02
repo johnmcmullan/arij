@@ -293,6 +293,13 @@ External System ──> Webhook ──> Sync Server ──> Git Commit ──> D
 ✅ **Git-based** - Full history, branches, pull requests  
 ✅ **Offline-capable** - Create tickets without network access  
 
+### Tract Review
+✅ **Agent-friendly PR flow** - `tract branch` → work → `tract review open` → `tract review approve` → merge  
+✅ **Forgejo integration** - Human diff UI via self-hosted Forgejo; Tract owns ticket state and merge gate  
+✅ **Approval policies** - `agent-only`, `1-human`, `2-human` enforced by pre-receive hook  
+✅ **Git-native audit trail** - Every approval is a commit under the reviewer's SSH key  
+✅ **Agent reviews** - Fresh adversarial LLM context; confidence scores recorded in frontmatter  
+
 ### Time Tracking
 ✅ **Simple logging** - `tract log APP-3350 2h "what you did"`  
 ✅ **Optional sync** - Time tracking syncs to external systems  
@@ -381,6 +388,8 @@ Tract is **plain text with LLM interfaces**. Express intent, delegate to automat
 - **The interface is any LLM** - Use Copilot, Cursor, Claude, or build your own
 - **The product is a specification** - SCHEMA.md documents everything
 - **The infrastructure is git** - Distributed, fast, reliable, proven
+
+Tract Review replaces the PR workflow with a contract layer: agents do the work, humans approve with a single commit, a pre-receive hook enforces the policy. The diff UI is Forgejo. The source of truth is the ticket.
 
 ---
 
