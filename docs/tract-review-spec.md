@@ -574,9 +574,9 @@ of truth throughout.
 
 ---
 
-## Open Question: Is Forgejo the Right UI Layer?
+## UI Layer Decision: Forgejo ✅
 
-**Status:** Unresolved — 2026-03-02
+**Status:** Decided — 2026-03-02
 
 The Forgejo model was agreed as the direction for this spec. The concern is whether
 it's the right choice in practice.
@@ -599,5 +599,4 @@ than whether it's the wrong tool. The spec's `## Future: tract serve` section is
 long-term answer: once `tract serve` can render diffs and capture inline comments,
 Forgejo becomes optional. Until then, it fills the gap without creating lock-in.
 
-**Decision needed:** Confirm Forgejo as the interim UI layer, or park the review
-workflow until `tract serve` is mature enough.
+**Decision:** Forgejo is the confirmed interim UI layer. Don't build a custom PR UI — Forgejo already exists, the integration is minimal (open PR, close PR, optional webhook), and attention stays on the main task. Revisit when `tract serve` is mature enough to replace it.
