@@ -161,6 +161,24 @@ program
   .action(require('../commands/pull'));
 
 program
+  .command('branch <ticket>')
+  .description('Create a git branch for a ticket and record it in frontmatter')
+  .option('--name <branch>', 'Branch name (default: derived from ticket title)')
+  .option('--base <branch>', 'Base branch to branch from (default: current HEAD)')
+  .option('--force', 'Add an additional branch even if one already exists')
+  .action(require('../commands/branch'));
+
+program
+  .command('review <subcommand> <ticket>')
+  .description('Tract Review: open, approve, status, check')
+  .option('--base <branch>', 'Base branch for PR (default: main)')
+  .option('--policy <policy>', 'Review policy: agent-only, 1-human, 2-human, none')
+  .option('--repo <owner/repo>', 'Forgejo repo path (default: detected from git remote)')
+  .option('--comment <text>', 'Approval comment (used with approve subcommand)')
+  .option('--force', 'Re-open an already in-review ticket')
+  .action(require('../commands/review'));
+
+program
   .command('skills [name]')
   .description('List available LLM skill prompts, or print one to stdout')
   .action(require('../commands/skills'));
