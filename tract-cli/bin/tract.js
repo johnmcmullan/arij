@@ -161,6 +161,14 @@ program
   .action(require('../commands/pull'));
 
 program
+  .command('branch <ticket>')
+  .description('Create a git branch for a ticket and record it in frontmatter')
+  .option('--name <branch>', 'Branch name (default: derived from ticket title)')
+  .option('--base <branch>', 'Base branch to branch from (default: current HEAD)')
+  .option('--force', 'Add an additional branch even if one already exists')
+  .action(require('../commands/branch'));
+
+program
   .command('skills [name]')
   .description('List available LLM skill prompts, or print one to stdout')
   .action(require('../commands/skills'));
