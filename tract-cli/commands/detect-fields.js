@@ -508,7 +508,7 @@ async function detectFields(project, options) {
   }
   const sentinelPath = path.resolve(tractDir, '.tract', '.pending-field-detection');
   console.log(chalk.gray('  Review unidentified fields above and re-run with --reuse to add more.'));
-  console.log(chalk.gray(`  Then run: rm ${sentinelPath}`));
+  console.log(chalk.gray(`  Then run: tract accept-mappings ${resolvedProjectKey}`));
   console.log(chalk.gray('  to start the sync.\n'));
 }
 
