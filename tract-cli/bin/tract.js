@@ -153,6 +153,7 @@ program
   .option('--server <host>', 'Sync server hostname for direct clone, e.g. reek (no catalog needed)')
   .option('--dry-run', 'Show what would be cloned without doing it')
   .option('--full', 'Clone full git history (default: shallow --depth 1 snapshot)')
+  .option('--ssh', 'Use SSH instead of git:// daemon (requires tract user SSH access)')
   .action(require('../commands/clone'));
 
 // pull — git pull all workspace repos (project repos + worklogs)
