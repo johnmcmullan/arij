@@ -7,6 +7,20 @@ const axios = require('axios');
 
 const JiraClient = require('../lib/jira-client');
 
+// ── Daemon credential fallback ────────────────────────────────────────────────
+// Read /etc/tract-sync/env so Jira credentials don't need to be duplicated.
+// Silently returns {} if the file is absent or unreadable.
+function loadDaemonEnv(envFile = '/etc/tract-sync/env') {
+  try {
+    return fs.readFileSync(envFile, 'utf8')
+      .split('\n')
+      .reduce((acc, line) => {
+        const m = line.match(/^(?:export\s+)?([A-Z_][A-Z0-9_]*)=(.*)$/);
+        if (m) acc[m[1]] = m[2].replace(/^["']|["']$/g, '');
+        return acc;
+      }, {});
+  } catch (_) { return {}; }
+}
 // ── Field names that are too large or not useful for field detection ──────────
 const SKIP_FIELDS = new Set([
   'description', 'comment', 'renderedFields', 'attachment',
@@ -250,9 +264,14 @@ async function detectFields(project, options) {
 
   } else {
     // ── Fetch mode: stratified sample across issue types ──────────────────────
-    const jiraUrl  = options.jira  || config.jira?.url || config.upstream;
-    const username = options.user  || process.env.JIRA_USERNAME;
-    const token    = options.token || process.env.JIRA_TOKEN || process.env.JIRA_PASSWORD || process.env.JIRA_API_TOKEN;
+
+    // Read daemon env file as credential fallback so credentials aren't duplicated
+    const daemonEnv = loadDaemonEnv();
+
+    const jiraUrl  = options.jira  || config.jira?.url || config.upstream || daemonEnv.JIRA_BASE_URL;
+    const username = options.user  || process.env.JIRA_USERNAME  || daemonEnv.JIRA_USERNAME;
+    const token    = options.token || process.env.JIRA_TOKEN || process.env.JIRA_PASSWORD
+                                   || process.env.JIRA_API_TOKEN || daemonEnv.JIRA_API_TOKEN;
     const perType  = parseInt(options.perType || options.count || '2', 10);
 
     if (!jiraUrl) {
