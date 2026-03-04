@@ -262,9 +262,10 @@ async function detectFields(project, options) {
   }
 
   const apiKey = options.apiKey || process.env.ANTHROPIC_API_KEY;
-  const model  = options.model  || (process.env.CLIENT_SECRET ? 'gpt-4o' : 'claude-sonnet-4-6');
+  // Resolve actual model: SAIS takes priority and uses gpt-4o
+  const usingSais = !!(process.env.CLIENT_SECRET && process.env.SAIS_URL && process.env.SAIS_ID_URL && process.env.CLIENT_ID);
+  const model  = options.model  || (usingSais ? 'gpt-4o' : 'claude-sonnet-4-6');
 
-  const usingSais = !!(process.env.CLIENT_SECRET && process.env.SAIS_URL);
   if (!apiKey && !usingSais) {
     console.error(chalk.red('❌ No AI credentials — set ANTHROPIC_API_KEY or CLIENT_SECRET+SAIS_URL'));
     process.exit(1);
@@ -440,15 +441,22 @@ async function detectFields(project, options) {
     }
   }
   let autoResolved = 0;
+  const autoResolvedEntries = [];
   for (const fieldId of unidentifiedInOutput) {
     if (newEntries[fieldId]) continue; // already mapped by AI
     if (fieldNames[fieldId]) {
-      newEntries[fieldId] = displayNameToKey(fieldNames[fieldId]);
+      const key = displayNameToKey(fieldNames[fieldId]);
+      newEntries[fieldId] = key;
+      autoResolvedEntries.push({ fieldId, key, displayName: fieldNames[fieldId] });
       autoResolved++;
     }
   }
   if (autoResolved > 0) {
     console.log(chalk.cyan(`  ↳ Auto-resolved ${autoResolved} field(s) from Jira display name (AI left them as ???)`));
+    for (const { fieldId, key, displayName } of autoResolvedEntries) {
+      const rawDisplay = displayName.replace(/\s*\[.*?\]\s*$/, '');
+      console.log(chalk.gray(`     ${fieldId}: ${key}  # "${rawDisplay}"`));
+    }
   }
 
 
@@ -477,6 +485,14 @@ async function detectFields(project, options) {
       fs.writeFileSync(instanceFieldsPath, yaml.dump(fieldsObj, { lineWidth: -1 }), 'utf8');
       console.log(chalk.green(`✓ Added ${added} new field mapping(s) to ${instanceFieldsPath}`));
       console.log(chalk.gray(`  (${Object.keys(newEntries).length - added} already present, preserved)`));
+      console.log(chalk.bold.cyan('\n─── Final mappings written to fields.yaml ────────────────────'));
+      for (const [k, v] of Object.entries(newEntries)) {
+        if (!fieldsObj.custom_field_map[k] && Object.keys(newEntries).includes(k)) continue; // shouldn't happen
+        const wasAutoResolved = autoResolvedEntries.some(e => e.fieldId === k);
+        const tag = wasAutoResolved ? chalk.cyan(' (display name)') : '';
+        console.log(`  ${chalk.yellow(k)}: ${chalk.white(v)}${tag}`);
+      }
+      console.log(chalk.bold.cyan('──────────────────────────────────────────────────────────────'));
     } catch (e) {
       console.log(chalk.yellow(`⚠️  Could not write ${instanceFieldsPath}: ${e.message}`));
       console.log(chalk.gray('   You may need to run as a user with write access, or add entries manually.'));
