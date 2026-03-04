@@ -120,18 +120,28 @@ async function callAI(prompt, apiKey, model) {
 }
 
 // ── Build the prompt ──────────────────────────────────────────────────────────
-function buildPrompt(projectKey, compactIssues) {
+function buildPrompt(projectKey, compactIssues, fieldNames = {}) {
   const issueJson = JSON.stringify(compactIssues, null, 2);
+
+  // Build a lookup hint for any custom fields we have names for
+  const nameHints = Object.entries(fieldNames)
+    .filter(([id]) => id.startsWith('customfield_'))
+    .map(([id, name]) => `  ${id}: "${name}"`)
+    .join('\n');
+  const nameSection = nameHints
+    ? `\nJira field display names (from /rest/api/2/field):\n${nameHints}\n`
+    : '';
 
   return `You are analyzing raw Jira ticket data to identify custom field semantics.
 
 Below are ${compactIssues.length} tickets from project ${projectKey}.
 Fields starting with "customfield_" are Jira instance-specific and need to be mapped
 to human-readable names so the tract import tool can produce correct frontmatter.
-
+${nameSection}
 Your job:
 1. For each customfield_NNNNN that has non-null data in at least one ticket,
    infer its semantic meaning from its value shape and content.
+   Use the display names above as strong hints — they are the official Jira field labels.
 2. Common fields to look for (but don't limit yourself to these):
    - sprint (object with name, state, startDate, endDate, goal — or array of such)
    - story_points (plain number: 1, 2, 3, 5, 8, 13...)
@@ -249,6 +259,17 @@ async function detectFields(project, options) {
 
   // ── Two modes: re-analyze saved payload, or fetch fresh ────────────────────
   let compactIssues;
+  let client = null;
+
+  // Always build a JiraClient so we can fetch field names for the prompt
+  const daemonEnv = loadDaemonEnv();
+  const jiraUrl  = options.jira  || config.jira?.url || config.upstream || daemonEnv.JIRA_BASE_URL;
+  const username = options.user  || process.env.JIRA_USERNAME  || daemonEnv.JIRA_USERNAME;
+  const token    = options.token || process.env.JIRA_TOKEN || process.env.JIRA_PASSWORD
+                                 || process.env.JIRA_API_TOKEN || daemonEnv.JIRA_API_TOKEN;
+  if (jiraUrl && token) {
+    client = new JiraClient(jiraUrl, { username, password: token });
+  }
 
   const savedPayload = options.payload || (
     options.reuse && fs.existsSync(payloadPath(tractDir)) ? payloadPath(tractDir) : null
@@ -266,14 +287,6 @@ async function detectFields(project, options) {
 
   } else {
     // ── Fetch mode: stratified sample across issue types ──────────────────────
-
-    // Read daemon env file as credential fallback so credentials aren't duplicated
-    const daemonEnv = loadDaemonEnv();
-
-    const jiraUrl  = options.jira  || config.jira?.url || config.upstream || daemonEnv.JIRA_BASE_URL;
-    const username = options.user  || process.env.JIRA_USERNAME  || daemonEnv.JIRA_USERNAME;
-    const token    = options.token || process.env.JIRA_TOKEN || process.env.JIRA_PASSWORD
-                                   || process.env.JIRA_API_TOKEN || daemonEnv.JIRA_API_TOKEN;
     const perType  = parseInt(options.perType || options.count || '2', 10);
 
     if (!jiraUrl) {
@@ -290,8 +303,6 @@ async function detectFields(project, options) {
     console.log(chalk.gray(`Jira:     ${jiraUrl}`));
     console.log(chalk.gray(`Sample:   ${perType} tickets per issue type`));
     console.log(chalk.gray(`Model:    ${model}\n`));
-
-    const client = new JiraClient(jiraUrl, { username, password: token });
 
     const fetchSpinner = ora(`Fetching sample tickets by issue type…`).start();
     let issues;
@@ -331,14 +342,23 @@ async function detectFields(project, options) {
   console.log(chalk.gray(`  Custom fields with data: ${customFields.size}`));
   console.log(chalk.gray(`  Issue types: ${issueTypes.join(', ')}\n`));
 
-  // ── Call Claude ─────────────────────────────────────────────────────────────
+  // Fetch Jira field display names to help the AI (and the user reading comments)
+  let fieldNames = {};
+  if (client) {
+    try {
+      const allFields = await client.getCustomFields();
+      fieldNames = Object.fromEntries(allFields.map(f => [f.id, f.name]));
+    } catch (_) { /* non-fatal */ }
+  }
+
+  // ── Call AI ─────────────────────────────────────────────────────────────────
   const claudeSpinner = ora(`Asking ${model} to identify fields…`).start();
   let result;
   try {
-    result = await callAI(buildPrompt(projectKey, compactIssues), apiKey, model);
+    result = await callAI(buildPrompt(projectKey, compactIssues, fieldNames), apiKey, model);
     claudeSpinner.succeed(chalk.green('✓ Analysis complete'));
   } catch (err) {
-    claudeSpinner.fail(chalk.red('Claude API call failed'));
+    claudeSpinner.fail(chalk.red('AI API call failed'));
     console.error(chalk.red(`  ${err.response?.data ? JSON.stringify(err.response.data) : err.message}`));
     process.exit(1);
   }
