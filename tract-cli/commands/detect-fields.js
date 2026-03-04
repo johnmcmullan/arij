@@ -188,7 +188,6 @@ custom_field_map:
 Custom field samples:
 ${fieldsJson}`;
 }
-}
 
 // ── Default payload save path ─────────────────────────────────────────────────
 function payloadPath(tractDir) {
