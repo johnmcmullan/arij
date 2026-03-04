@@ -250,9 +250,9 @@ async function detectFields(project, options) {
 
   } else {
     // ── Fetch mode: stratified sample across issue types ──────────────────────
-    const jiraUrl  = options.jira  || config.jira?.url;
+    const jiraUrl  = options.jira  || config.jira?.url || config.upstream;
     const username = options.user  || process.env.JIRA_USERNAME;
-    const token    = options.token || process.env.JIRA_TOKEN || process.env.JIRA_PASSWORD;
+    const token    = options.token || process.env.JIRA_TOKEN || process.env.JIRA_PASSWORD || process.env.JIRA_API_TOKEN;
     const perType  = parseInt(options.perType || options.count || '2', 10);
 
     if (!jiraUrl) {
