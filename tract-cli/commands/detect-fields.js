@@ -247,7 +247,19 @@ async function detectFields(project, options) {
   console.log(chalk.bold.cyan('\n🔍 Tract Field Detector\n'));
 
   // ── Resolve config ──────────────────────────────────────────────────────────
-  const tractDir   = path.resolve(options.tract || '.');
+  // If --tract not given, try cwd; if that has no config but cwd/<PROJECT> does,
+  // use the subdirectory (common when running as the tract user from /opt/tract).
+  let tractDir = path.resolve(options.tract || '.');
+  const projectKey = (project || options.project || '').toUpperCase();
+
+  if (!options.tract && projectKey) {
+    const subDir = path.join(tractDir, projectKey);
+    if (!fs.existsSync(path.join(tractDir, '.tract', 'config.yaml')) &&
+         fs.existsSync(path.join(subDir, '.tract', 'config.yaml'))) {
+      tractDir = subDir;
+    }
+  }
+
   const configPath = path.join(tractDir, '.tract', 'config.yaml');
   let config = {};
 
@@ -255,8 +267,8 @@ async function detectFields(project, options) {
     config = yaml.load(fs.readFileSync(configPath, 'utf8')) || {};
   }
 
-  const projectKey = (project || options.project || config.project || '').toUpperCase();
-  if (!projectKey) {
+  const resolvedProjectKey = (projectKey || config.project || '').toUpperCase();
+  if (!resolvedProjectKey) {
     console.error(chalk.red('❌ Project key required — pass it as an argument or set in config.yaml'));
     process.exit(1);
   }
@@ -313,7 +325,7 @@ async function detectFields(project, options) {
       process.exit(1);
     }
 
-    console.log(chalk.gray(`Project:  ${projectKey}`));
+    console.log(chalk.gray(`Project:  ${resolvedProjectKey}`));
     console.log(chalk.gray(`Jira:     ${jiraUrl}`));
     console.log(chalk.gray(`Sample:   ${perType} tickets per issue type`));
     console.log(chalk.gray(`Model:    ${model}\n`));
@@ -321,7 +333,7 @@ async function detectFields(project, options) {
     const fetchSpinner = ora(`Fetching sample tickets by issue type…`).start();
     let issues;
     try {
-      issues = await fetchStratifiedSample(client, projectKey, perType);
+      issues = await fetchStratifiedSample(client, resolvedProjectKey, perType);
       fetchSpinner.succeed(chalk.green(`✓ Fetched ${issues.length} tickets across ${new Set(issues.map(i => i.fields?.issuetype?.name)).size} types`));
     } catch (err) {
       fetchSpinner.fail(chalk.red('Failed to fetch tickets'));
@@ -330,7 +342,7 @@ async function detectFields(project, options) {
     }
 
     if (issues.length === 0) {
-      console.error(chalk.red(`❌ No tickets found in project ${projectKey}`));
+      console.error(chalk.red(`❌ No tickets found in project ${resolvedProjectKey}`));
       process.exit(1);
     }
 
@@ -342,7 +354,7 @@ async function detectFields(project, options) {
       fs.mkdirSync(path.dirname(pPath), { recursive: true });
       fs.writeFileSync(pPath, JSON.stringify(compactIssues, null, 2));
       console.log(chalk.gray(`  Payload saved → ${path.relative(process.cwd(), pPath)}`));
-      console.log(chalk.gray(`  Re-analyze without fetching: tract detect-fields ${projectKey} --reuse\n`));
+      console.log(chalk.gray(`  Re-analyze without fetching: tract detect-fields ${resolvedProjectKey} --reuse\n`));
     } catch {
       // Non-fatal
     }
@@ -371,7 +383,7 @@ async function detectFields(project, options) {
   // ── Agent mode: write data to file for LLM running in user's session ────────
   if (options.agent) {
     const outFile = options.agentOutput || '/tmp/tract-field-data.json';
-    const agentData = { projectKey, fieldNames, compactIssues };
+    const agentData = { projectKey: resolvedProjectKey, fieldNames, compactIssues };
     fs.writeFileSync(outFile, JSON.stringify(agentData, null, 2), 'utf8');
     // Make readable by all users so the LLM session (different user) can read it
     try { fs.chmodSync(outFile, 0o644); } catch (_) {}
@@ -384,7 +396,7 @@ async function detectFields(project, options) {
   const claudeSpinner = ora(`Asking ${model} to identify fields…`).start();
   let result;
   try {
-    result = await callAI(buildPrompt(projectKey, compactIssues, fieldNames), apiKey, model);
+    result = await callAI(buildPrompt(resolvedProjectKey, compactIssues, fieldNames), apiKey, model);
     claudeSpinner.succeed(chalk.green('✓ Analysis complete'));
   } catch (err) {
     claudeSpinner.fail(chalk.red('AI API call failed'));
