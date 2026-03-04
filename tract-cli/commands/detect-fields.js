@@ -98,9 +98,11 @@ async function callAI(prompt, apiKey, model) {
   // Prefer SAIS when CLIENT_SECRET + SAIS_URL are set
   if (process.env.CLIENT_SECRET && process.env.SAIS_URL && process.env.SAIS_ID_URL && process.env.CLIENT_ID) {
     const token = await getSaisToken();
+    // SAIS uses OpenAI model names — don't pass through Anthropic model names
+    const saisModel = (model && !model.startsWith('claude')) ? model : 'gpt-4o';
     const res = await axios.post(
       `${process.env.SAIS_URL}/v1/chat/completions`,
-      { model: model || 'gpt-4o', max_tokens: 2048, messages: [{ role: 'user', content: prompt }] },
+      { model: saisModel, max_tokens: 2048, messages: [{ role: 'user', content: prompt }] },
       { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, timeout: 60000 }
     );
     return res.data.choices[0].message.content;
