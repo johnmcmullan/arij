@@ -411,6 +411,79 @@ tract map-components --code .. --confidence 90
 
 ---
 
+### `tract detect-fields [project]`
+
+Sample Jira tickets and use AI to identify custom field mappings. Results are written instance-wide to `/etc/tract-sync/fields.yaml`.
+
+**Arguments:**
+- `[project]` - Project key (e.g., PRD). Auto-detected when run from `/opt/tract`.
+
+**Optional:**
+- `--reuse` - Re-analyse the saved payload without re-fetching from Jira
+- `--agent` - Write field data to `/tmp/tract-field-data.json` for external LLM analysis
+- `--agent-output <file>` - Override the agent output path
+- `--per-type <n>` - Sample tickets per issue type (default: 2)
+- `--model <model>` - AI model to use
+- `--jira <url>` - Jira instance URL (falls back to `/etc/tract-sync/env`)
+- `--user <username>` - Jira username (falls back to `/etc/tract-sync/env`)
+- `--token <token>` - Jira API token (falls back to `/etc/tract-sync/env`)
+
+**What it does:**
+1. Fetches a stratified sample of tickets by issue type
+2. Saves payload to `<projectDir>/.tract/detect-fields-payload.json`
+3. Fetches field display names and plugin keys from Jira's `/rest/api/2/field`
+4. Sends a field-centric prompt to AI (SAIS/GPT-4o preferred, Anthropic fallback)
+5. Auto-resolves any "unidentified" fields that have an official Jira display name
+6. Writes final mappings to `/etc/tract-sync/fields.yaml` (non-destructive)
+7. Prints a summary and instructs you to run `tract accept-mappings <PROJECT>`
+
+**AI backend:** Uses SAIS (internal BroadGPT proxy) when `SAIS_URL`, `SAIS_ID_URL`, `CLIENT_ID`, and `CLIENT_SECRET` are set; falls back to Anthropic direct. Credentials are stored in `/opt/tract/.env`.
+
+**Note:** Blocked if `.tract/.pending-field-detection` sentinel is not present.
+
+**Examples:**
+
+```bash
+# Detect fields for PRD project (from /opt/tract)
+tract detect-fields PRD
+
+# Re-analyse without re-fetching
+tract detect-fields PRD --reuse
+
+# Write data for external LLM analysis
+tract detect-fields PRD --agent
+```
+
+---
+
+### `tract accept-mappings [project]`
+
+Accept detected field mappings and unblock project sync. Run after `tract detect-fields`.
+
+**Arguments:**
+- `[project]` - Project key. Auto-detected when run from `/opt/tract`.
+
+**Optional:**
+- `--keep-payload` - Preserve `.tract/detect-fields-payload.json` (default: deleted)
+- `--tract <dir>` - Tract repo directory
+- `--project <key>` - Explicit project key
+
+**What it does:**
+1. Deletes the `.tract/.pending-field-detection` sentinel (unblocks sync)
+2. Deletes `.tract/detect-fields-payload.json` (unless `--keep-payload`)
+3. Reports count of mappings now active in `/etc/tract-sync/fields.yaml`
+
+**Example:**
+
+```bash
+# Full field detection workflow
+tract detect-fields PRD           # AI analysis + auto-apply to fields.yaml
+tract detect-fields PRD --reuse   # re-run without re-fetching (optional)
+tract accept-mappings PRD         # delete sentinel → sync starts
+```
+
+---
+
 ## Environment Variables
 
 ### `TRACT_SYNC_SERVER`
