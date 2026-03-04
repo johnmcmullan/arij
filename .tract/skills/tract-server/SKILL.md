@@ -160,6 +160,24 @@ journalctl -u tract-sync -n 20    # confirm no auth errors
 sudo -u tract git -C /opt/tract/tickets/APP.git log --oneline -5
 ```
 
+**Pack a project repo (run periodically or when clone is slow):**
+
+Sync commits accumulate millions of loose objects over time. Run `git gc` to pack them:
+```bash
+sudo -u tract git -C /opt/tract/APP gc --aggressive --prune=now
+# Takes a few minutes; dramatically reduces object count and clone time
+```
+
+Each project's post-full-sync hook runs `git gc --auto` which handles routine packing.
+For a manual full repack of all projects:
+```bash
+for p in APP TB PRD SPRJ; do
+  echo "=== $p ===" && sudo -u tract git -C /opt/tract/$p gc --aggressive --prune=now
+done
+```
+
+Note: `tract clone` uses `--depth 1` (shallow) by default so developers get a fast snapshot regardless of server-side object count. Server-side gc still matters for storage and push performance.
+
 ## Troubleshooting
 
 **tract-sync fails to start:**

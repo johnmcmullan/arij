@@ -456,6 +456,38 @@ tract detect-fields PRD --agent
 
 ---
 
+### `tract clone <project>`
+
+Clone a project (and its dependencies) from the catalog server or directly from a sync server.
+
+**Arguments:**
+- `<project>` - Project key (e.g., `APP`) or a full git URL
+
+**Optional:**
+- `--server <host>` - Sync server hostname for direct clone (no catalog needed), e.g. `reek`
+- `--dest <dir>` - Destination directory (default: `~/.tract/<PROJECT>`)
+- `--dry-run` - Show what would be cloned without doing it
+- `--full` - Clone full git history (default: shallow `--depth 1` snapshot)
+
+**Default is shallow clone.** Ticket repos accumulate millions of git objects over time (sync commits every few minutes). Developers only need the current state — shallow clone is orders of magnitude faster and smaller. Use `--full` only if you need git history for a specific reason.
+
+**Examples:**
+
+```bash
+# Direct clone from sync server (most common)
+tract clone APP --server reek
+
+# Via catalog server
+tract clone APP
+
+# Clone with full history (rarely needed)
+tract clone APP --server reek --full
+```
+
+**After cloning**, use `tract pull` to keep up to date (also shallow-compatible).
+
+---
+
 ### `tract accept-mappings [project]`
 
 Accept detected field mappings and unblock project sync. Run after `tract detect-fields`.
