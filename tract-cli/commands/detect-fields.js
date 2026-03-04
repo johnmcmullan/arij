@@ -363,20 +363,60 @@ async function detectFields(project, options) {
     process.exit(1);
   }
 
+  // ── Parse the YAML block from AI output ────────────────────────────────────
+  const yamlMatch = result.match(/```yaml\n([\s\S]*?)```/);
+  const yamlBlock = yamlMatch ? yamlMatch[1] : result;
+
+  // Extract only the custom_field_map entries (skip comments, unidentified section)
+  const mapLines = [];
+  let inMap = false, inUnidentified = false;
+  for (const line of yamlBlock.split('\n')) {
+    if (/^\s*#.*unidentified/i.test(line)) { inUnidentified = true; }
+    if (inUnidentified) continue;
+    if (/^\s*custom_field_map:/.test(line)) { inMap = true; continue; }
+    if (inMap && /^\s+customfield_\d+:/.test(line)) { mapLines.push(line); }
+    else if (inMap && line.trim() && !/^\s*#/.test(line) && !/^\s+/.test(line)) { inMap = false; }
+  }
+
   // ── Print result ────────────────────────────────────────────────────────────
   console.log(chalk.bold.yellow('\n─── Suggested custom_field_map ───────────────────────────────\n'));
   console.log(result);
   console.log(chalk.bold.yellow('──────────────────────────────────────────────────────────────\n'));
 
-  console.log(
-    chalk.gray('1. Paste the ') + chalk.cyan('custom_field_map:') +
-    chalk.gray(' block under ') + chalk.cyan('jira:') +
-    chalk.gray(' in ') + chalk.cyan('.tract/config.yaml')
-  );
-  console.log(chalk.gray('2. Review the unidentified section — rename any you recognise'));
-  console.log(chalk.gray('3. If you spot a field you want to add without re-fetching:'));
-  console.log(chalk.white(`      tract detect-fields ${projectKey} --reuse`));
-  console.log(chalk.gray('4. Then run: ') + chalk.white('tract import\n'));
+  if (mapLines.length === 0) {
+    console.log(chalk.yellow('⚠️  Could not parse custom_field_map from AI output — edit config.yaml manually'));
+    return;
+  }
+
+  // ── Apply to config.yaml ────────────────────────────────────────────────────
+  if (!fs.existsSync(configPath)) {
+    console.log(chalk.yellow(`⚠️  No config.yaml at ${configPath} — cannot apply`));
+    return;
+  }
+
+  let configText = fs.readFileSync(configPath, 'utf8');
+  const newMapBlock = `  custom_field_map:\n${mapLines.join('\n')}`;
+
+  if (/custom_field_map:/.test(configText)) {
+    // Replace existing map
+    configText = configText.replace(
+      /(\s*custom_field_map:[\s\S]*?)(\n\S|\n\s*[a-z_]+:|$)/,
+      (_, _map, after) => `\n${newMapBlock}${after}`
+    );
+  } else if (/^jira:/m.test(configText)) {
+    // Append under existing jira: block
+    configText = configText.replace(/^(jira:[\s\S]*?)(\n\S|$)/m,
+      (_, block, after) => `${block}\n${newMapBlock}${after}`
+    );
+  } else {
+    // Add new jira: section
+    configText += `\njira:\n${newMapBlock}\n`;
+  }
+
+  fs.writeFileSync(configPath, configText, 'utf8');
+  console.log(chalk.green(`✓ Applied ${mapLines.length} field mappings to ${configPath}`));
+  console.log(chalk.gray('  Review unidentified fields above and re-run with --reuse to add more.'));
+  console.log(chalk.gray('  Then delete .tract/.pending-field-detection to start the sync.\n'));
 }
 
 module.exports = detectFields;
