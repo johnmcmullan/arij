@@ -278,10 +278,9 @@ async function detectFields(project, options) {
       console.error(chalk.red('❌ Jira URL required — use --jira or set jira.url in config.yaml'));
       process.exit(1);
     }
-    if (!username || !token) {
+    if (!token) {
       console.error(chalk.red('❌ Jira credentials required'));
-      console.error(chalk.yellow('   export JIRA_USERNAME=you@company.com'));
-      console.error(chalk.yellow('   export JIRA_TOKEN=<api-token>'));
+      console.error(chalk.yellow('   export JIRA_API_TOKEN=<api-token>'));
       process.exit(1);
     }
 
