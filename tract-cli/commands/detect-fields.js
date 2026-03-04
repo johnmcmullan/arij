@@ -477,7 +477,6 @@ async function detectFields(project, options) {
   try { fieldsText = fs.readFileSync(instanceFieldsPath, 'utf8'); } catch (_) {}
 
   // Merge: add entries that aren't already mapped, preserve existing ones
-  const yaml = require('js-yaml');
   let fieldsObj = {};
   try { fieldsObj = yaml.load(fieldsText) || {}; } catch (_) {}
   if (!fieldsObj.custom_field_map) fieldsObj.custom_field_map = {};
