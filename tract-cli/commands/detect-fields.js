@@ -134,44 +134,44 @@ function displayNameToKey(rawName) {
 
 // ── Build the prompt ──────────────────────────────────────────────────────────
 function buildPrompt(projectKey, compactIssues, fieldNames = {}) {
-  const issueJson = JSON.stringify(compactIssues, null, 2);
+  // Build a field-centric summary: one representative sample per customfield.
+  // Sending full ticket JSON for 40+ tickets blows the context limit.
+  const fieldSamples = {};
+  for (const issue of compactIssues) {
+    for (const [k, v] of Object.entries(issue.fields || {})) {
+      if (!k.startsWith('customfield_')) continue;
+      if (v === null || v === undefined) continue;
+      if (!fieldSamples[k]) fieldSamples[k] = v;
+    }
+  }
+
+  const fieldsJson = JSON.stringify(fieldSamples, null, 2);
 
   // Build a lookup hint for any custom fields we have names for
   const nameHints = Object.entries(fieldNames)
-    .filter(([id]) => id.startsWith('customfield_'))
+    .filter(([id]) => id.startsWith('customfield_') && fieldSamples[id] !== undefined)
     .map(([id, name]) => `  ${id}: "${name}"`)
     .join('\n');
   const nameSection = nameHints
     ? `\nJira field metadata (display name [plugin key] from /rest/api/2/field):\n${nameHints}\n`
     : '';
 
-  return `You are analyzing raw Jira ticket data to identify custom field semantics.
+  return `You are analyzing Jira custom field samples to identify their semantics.
 
-Below are ${compactIssues.length} tickets from project ${projectKey}.
-Fields starting with "customfield_" are Jira instance-specific and need to be mapped
-to human-readable names so the tract import tool can produce correct frontmatter.
+Project: ${projectKey}  |  ${Object.keys(fieldSamples).length} custom fields with data (from ${compactIssues.length} sampled tickets)
 ${nameSection}
-Your job:
-1. For each customfield_NNNNN that has non-null data in at least one ticket,
-   infer its semantic meaning from its value shape and content.
-   Use the display names above as strong hints — they are the official Jira field labels.
-2. Common fields to look for (but don't limit yourself to these):
-   - sprint (object with name, state, startDate, endDate, goal — or array of such)
-   - story_points (plain number: 1, 2, 3, 5, 8, 13...)
-   - epic_link (issue key like APP-123, or short string, or epic object)
-   - epic_name (short string — the epic's own display title, only on Epic tickets)
-   - team (string or object with a name property)
-   - rank (a lexicographic ordering string, looks like "0|hzzzzz:")
-   - acceptance_criteria (long text, similar to description)
-   - flagged / impediment (boolean or option object containing "Impediment")
-   - Any other fields you can identify with reasonable confidence
-3. For EVERY customfield you see data in — even ones you can't name — include it
-   in the output. Identified fields go in custom_field_map; unidentified ones go
-   in a commented-out "unidentified" section with a sample value so the user can
-   decide manually without re-fetching from Jira.
-4. Include a brief comment on each line explaining what you saw.
+Each key below is a customfield_NNNNN with one representative sample value.
+Map each to a human-readable snake_case name for the tract import tool's frontmatter.
+Use the display names above as strong hints — they are the official Jira field labels.
 
-Output format — return ONLY this YAML block, nothing else before or after:
+Common fields to recognise:
+  - sprint: object with name/state/startDate/endDate, or array of such
+  - story_points: plain number (1,2,3,5,8,13…)
+  - epic_link: issue key like APP-123, or short string
+  - rank: lexicographic string like "0|hzzzzz:"
+  - team, acceptance_criteria, flagged/impediment, business_impact, etc.
+
+Output ONLY this YAML block, nothing else:
 
 \`\`\`yaml
 # Suggested custom_field_map for ${projectKey}
@@ -179,17 +179,15 @@ Output format — return ONLY this YAML block, nothing else before or after:
 custom_field_map:
   customfield_XXXXX: sprint          # {name: "Sprint 42", state: "active", ...}
   customfield_YYYYY: story_points    # plain number (3, 5, 8, ...)
-  # ... one entry per confidently-identified field
 
 # ── Unidentified custom fields ─────────────────────────────────────────────
-# These fields had data but couldn't be confidently named.
-# Inspect the sample value and add a mapping above if you recognise the field.
 # unidentified:
-#   customfield_ZZZZZ: ???    # sample: <compact sample value here>
+#   customfield_ZZZZZ: ???    # sample: <value>
 \`\`\`
 
-Ticket data:
-${issueJson}`;
+Custom field samples:
+${fieldsJson}`;
+}
 }
 
 // ── Default payload save path ─────────────────────────────────────────────────
