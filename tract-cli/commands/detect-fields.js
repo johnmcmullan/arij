@@ -119,6 +119,19 @@ async function callAI(prompt, apiKey, model) {
   return response.data.content[0].text;
 }
 
+// ── Convert a Jira display name to a snake_case key ──────────────────────────
+// Strips plugin prefix ("com.ullink.foo:BarBaz" → "bar_baz"), lowercases,
+// replaces non-alphanum with underscores, collapses runs.
+function displayNameToKey(rawName) {
+  // rawName may be "Link to Client Center platform [com.ullink.jira.ServiceDesk:ClientCenterPlatform]"
+  // Strip the bracketed plugin hint, take just the display name portion
+  const displayOnly = rawName.replace(/\s*\[.*?\]\s*$/, '').trim();
+  return displayOnly
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
+
 // ── Build the prompt ──────────────────────────────────────────────────────────
 function buildPrompt(projectKey, compactIssues, fieldNames = {}) {
   const issueJson = JSON.stringify(compactIssues, null, 2);
@@ -413,6 +426,31 @@ async function detectFields(project, options) {
     const m = line.match(/^\s+(customfield_\d+):\s+(\S+)/);
     if (m) newEntries[m[1]] = m[2];
   }
+
+  // ── Auto-resolve unidentified fields using Jira display names ───────────────
+  // If the LLM left a field as "???" but we have its official display name from
+  // /rest/api/2/field, convert it to snake_case and add it automatically.
+  const unidentifiedInOutput = [];
+  let inUnid = false;
+  for (const line of yamlBlock.split('\n')) {
+    if (/^\s*#.*unidentified/i.test(line)) { inUnid = true; }
+    if (inUnid) {
+      const m = line.match(/#\s*(customfield_\d+):/);
+      if (m) unidentifiedInOutput.push(m[1]);
+    }
+  }
+  let autoResolved = 0;
+  for (const fieldId of unidentifiedInOutput) {
+    if (newEntries[fieldId]) continue; // already mapped by AI
+    if (fieldNames[fieldId]) {
+      newEntries[fieldId] = displayNameToKey(fieldNames[fieldId]);
+      autoResolved++;
+    }
+  }
+  if (autoResolved > 0) {
+    console.log(chalk.cyan(`  ↳ Auto-resolved ${autoResolved} field(s) from Jira display name (AI left them as ???)`));
+  }
+
 
   // Load existing fields.yaml
   let fieldsText = '';
