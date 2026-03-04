@@ -197,7 +197,8 @@ program
   .option('--model <model>', 'Claude model to use', 'claude-sonnet-4-6')
   .option('--reuse', 'Re-analyze the last saved payload without fetching from Jira again')
   .option('--payload <file>', 'Re-analyze a specific compact JSON payload file')
-  .option('--agent', 'Print data for analysis by an LLM agent (skip AI API call)')
+  .option('--agent', 'Write field data to a file for analysis by an LLM agent (skips AI API call)')
+  .option('--agent-output <file>', 'Output path for --agent mode (default: /tmp/tract-field-data.json)')
   .action(require('../commands/detect-fields'));
 
 // auth — register Jira API token on sync server

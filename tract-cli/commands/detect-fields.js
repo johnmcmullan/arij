@@ -354,15 +354,15 @@ async function detectFields(project, options) {
     } catch (_) { /* non-fatal */ }
   }
 
-  // ── Agent mode: print data for LLM running in this session ──────────────────
+  // ── Agent mode: write data to file for LLM running in user's session ────────
   if (options.agent) {
-    console.log(chalk.bold.cyan('\n─── Field Detection Data (agent mode) ────────────────────────\n'));
-    console.log('Field names from Jira API:');
-    console.log(JSON.stringify(fieldNames, null, 2));
-    console.log('\nCompact ticket sample:');
-    console.log(JSON.stringify(compactIssues, null, 2));
-    console.log(chalk.bold.cyan('\n──────────────────────────────────────────────────────────────'));
-    console.log(chalk.gray('Analyze the above and run: tract detect-fields ' + projectKey + ' --reuse'));
+    const outFile = options.agentOutput || '/tmp/tract-field-data.json';
+    const agentData = { projectKey, fieldNames, compactIssues };
+    fs.writeFileSync(outFile, JSON.stringify(agentData, null, 2), 'utf8');
+    // Make readable by all users so the LLM session (different user) can read it
+    try { fs.chmodSync(outFile, 0o644); } catch (_) {}
+    console.log(chalk.green(`✓ Field data written to ${outFile}`));
+    console.log(chalk.gray(`  Pass this path to your LLM session for analysis.`));
     return;
   }
 
