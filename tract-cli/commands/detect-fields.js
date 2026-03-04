@@ -498,8 +498,10 @@ async function detectFields(project, options) {
       console.log(chalk.gray('   You may need to run as a user with write access, or add entries manually.'));
     }
   }
+  const sentinelPath = path.resolve(tractDir, '.tract', '.pending-field-detection');
   console.log(chalk.gray('  Review unidentified fields above and re-run with --reuse to add more.'));
-  console.log(chalk.gray('  Then delete .tract/.pending-field-detection to start the sync.\n'));
+  console.log(chalk.gray(`  Then run: rm ${sentinelPath}`));
+  console.log(chalk.gray('  to start the sync.\n'));
 }
 
 module.exports = detectFields;
