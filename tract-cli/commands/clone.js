@@ -46,7 +46,7 @@ async function cloneFromUrl(repoUrl, options) {
   } else {
     try {
       fs.mkdirSync(path.dirname(destDir), { recursive: true });
-      execSync(`git clone ${repoUrl} ${destDir}`, { stdio: 'inherit' });
+      execSync(`git clone ${options.full ? '' : '--depth 1 '}${repoUrl} ${destDir}`, { stdio: 'inherit' });
     } catch (err) {
       console.error(`  ✗ Failed to clone: ${err.message}`);
       process.exit(1);
@@ -174,7 +174,7 @@ module.exports = async function clone(projectPrefix, options) {
           console.log(`  (skipped — already cloned at ${relDest})`);
         } else {
           fs.mkdirSync(path.dirname(destDir), { recursive: true });
-          execSync(`git clone ${repoUrl} ${destDir}`, { stdio: 'inherit' });
+          execSync(`git clone ${options.full ? '' : '--depth 1 '}${repoUrl} ${destDir}`, { stdio: 'inherit' });
         }
         const wsFile = updateWorkspaceYaml(TRACT_DIR, [{
           name: projectPrefix.toUpperCase(),
@@ -249,7 +249,7 @@ module.exports = async function clone(projectPrefix, options) {
     } else {
       try {
         fs.mkdirSync(path.dirname(destDir), { recursive: true });
-        execSync(`git clone ${project.repo_url} ${destDir}`, { stdio: 'inherit' });
+        execSync(`git clone ${options.full ? '' : '--depth 1 '}${project.repo_url} ${destDir}`, { stdio: 'inherit' });
         console.log(`  ${project.name.padEnd(20)} → ~/${relDest.padEnd(30)} ✓`);
       } catch (err) {
         console.error(`  ✗ Failed to clone ${project.name}: ${err.message}`);

@@ -152,6 +152,7 @@ program
   .option('--dest <dir>', 'Destination directory (default: ~/.tract/)')
   .option('--server <host>', 'Sync server hostname for direct clone, e.g. reek (no catalog needed)')
   .option('--dry-run', 'Show what would be cloned without doing it')
+  .option('--full', 'Clone full git history (default: shallow --depth 1 snapshot)')
   .action(require('../commands/clone'));
 
 // pull — git pull all workspace repos (project repos + worklogs)
