@@ -129,7 +129,7 @@ function buildPrompt(projectKey, compactIssues, fieldNames = {}) {
     .map(([id, name]) => `  ${id}: "${name}"`)
     .join('\n');
   const nameSection = nameHints
-    ? `\nJira field display names (from /rest/api/2/field):\n${nameHints}\n`
+    ? `\nJira field metadata (display name [plugin key] from /rest/api/2/field):\n${nameHints}\n`
     : '';
 
   return `You are analyzing raw Jira ticket data to identify custom field semantics.
@@ -347,8 +347,23 @@ async function detectFields(project, options) {
   if (client) {
     try {
       const allFields = await client.getCustomFields();
-      fieldNames = Object.fromEntries(allFields.map(f => [f.id, f.name]));
+      // Include both display name and schema key (plugin ID) for maximum AI context
+      fieldNames = Object.fromEntries(
+        allFields.map(f => [f.id, f.schema?.custom ? `${f.name} [${f.schema.custom}]` : f.name])
+      );
     } catch (_) { /* non-fatal */ }
+  }
+
+  // ── Agent mode: print data for LLM running in this session ──────────────────
+  if (options.agent) {
+    console.log(chalk.bold.cyan('\n─── Field Detection Data (agent mode) ────────────────────────\n'));
+    console.log('Field names from Jira API:');
+    console.log(JSON.stringify(fieldNames, null, 2));
+    console.log('\nCompact ticket sample:');
+    console.log(JSON.stringify(compactIssues, null, 2));
+    console.log(chalk.bold.cyan('\n──────────────────────────────────────────────────────────────'));
+    console.log(chalk.gray('Analyze the above and run: tract detect-fields ' + projectKey + ' --reuse'));
+    return;
   }
 
   // ── Call AI ─────────────────────────────────────────────────────────────────
@@ -384,37 +399,51 @@ async function detectFields(project, options) {
   console.log(chalk.bold.yellow('──────────────────────────────────────────────────────────────\n'));
 
   if (mapLines.length === 0) {
-    console.log(chalk.yellow('⚠️  Could not parse custom_field_map from AI output — edit config.yaml manually'));
+    console.log(chalk.yellow('⚠️  Could not parse custom_field_map from AI output — edit fields.yaml manually'));
     return;
   }
 
-  // ── Apply to config.yaml ────────────────────────────────────────────────────
-  if (!fs.existsSync(configPath)) {
-    console.log(chalk.yellow(`⚠️  No config.yaml at ${configPath} — cannot apply`));
-    return;
+  // ── Apply to /etc/tract-sync/fields.yaml (instance-wide, covers all projects) ──
+  // Custom fields are Jira instance-wide so one file is the right target.
+  const instanceFieldsPath = '/etc/tract-sync/fields.yaml';
+
+  // Parse new entries as key: value (strip leading whitespace and inline comments)
+  const newEntries = {};
+  for (const line of mapLines) {
+    const m = line.match(/^\s+(customfield_\d+):\s+(\S+)/);
+    if (m) newEntries[m[1]] = m[2];
   }
 
-  let configText = fs.readFileSync(configPath, 'utf8');
-  const newMapBlock = `  custom_field_map:\n${mapLines.join('\n')}`;
+  // Load existing fields.yaml
+  let fieldsText = '';
+  try { fieldsText = fs.readFileSync(instanceFieldsPath, 'utf8'); } catch (_) {}
 
-  if (/custom_field_map:/.test(configText)) {
-    // Replace existing map
-    configText = configText.replace(
-      /(\s*custom_field_map:[\s\S]*?)(\n\S|\n\s*[a-z_]+:|$)/,
-      (_, _map, after) => `\n${newMapBlock}${after}`
-    );
-  } else if (/^jira:/m.test(configText)) {
-    // Append under existing jira: block
-    configText = configText.replace(/^(jira:[\s\S]*?)(\n\S|$)/m,
-      (_, block, after) => `${block}\n${newMapBlock}${after}`
-    );
+  // Merge: add entries that aren't already mapped, preserve existing ones
+  const yaml = require('js-yaml');
+  let fieldsObj = {};
+  try { fieldsObj = yaml.load(fieldsText) || {}; } catch (_) {}
+  if (!fieldsObj.custom_field_map) fieldsObj.custom_field_map = {};
+
+  let added = 0;
+  for (const [k, v] of Object.entries(newEntries)) {
+    if (!fieldsObj.custom_field_map[k]) {
+      fieldsObj.custom_field_map[k] = v;
+      added++;
+    }
+  }
+
+  if (added === 0) {
+    console.log(chalk.gray(`ℹ️  All ${Object.keys(newEntries).length} fields already in ${instanceFieldsPath}`));
   } else {
-    // Add new jira: section
-    configText += `\njira:\n${newMapBlock}\n`;
+    try {
+      fs.writeFileSync(instanceFieldsPath, yaml.dump(fieldsObj, { lineWidth: -1 }), 'utf8');
+      console.log(chalk.green(`✓ Added ${added} new field mapping(s) to ${instanceFieldsPath}`));
+      console.log(chalk.gray(`  (${Object.keys(newEntries).length - added} already present, preserved)`));
+    } catch (e) {
+      console.log(chalk.yellow(`⚠️  Could not write ${instanceFieldsPath}: ${e.message}`));
+      console.log(chalk.gray('   You may need to run as a user with write access, or add entries manually.'));
+    }
   }
-
-  fs.writeFileSync(configPath, configText, 'utf8');
-  console.log(chalk.green(`✓ Applied ${mapLines.length} field mappings to ${configPath}`));
   console.log(chalk.gray('  Review unidentified fields above and re-run with --reuse to add more.'));
   console.log(chalk.gray('  Then delete .tract/.pending-field-detection to start the sync.\n'));
 }
