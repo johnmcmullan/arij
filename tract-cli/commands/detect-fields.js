@@ -64,20 +64,39 @@ function collectCustomFields(compactIssues) {
 }
 
 // ── Call the Anthropic Messages API ──────────────────────────────────────────
-async function callClaude(prompt, apiKey, model) {
+// ── AI call — SAIS (OpenAI-compatible) or Anthropic ──────────────────────────
+
+async function getSaisToken() {
+  const idUrl    = process.env.SAIS_ID_URL;
+  const clientId = process.env.CLIENT_ID;
+  const secret   = process.env.CLIENT_SECRET;
+  const params   = new URLSearchParams({
+    grant_type: 'client_credentials', client_id: clientId, client_secret: secret,
+  });
+  const res = await axios.post(idUrl, params.toString(), {
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    timeout: 15000,
+  });
+  return res.data.access_token;
+}
+
+async function callAI(prompt, apiKey, model) {
+  // Prefer SAIS when CLIENT_SECRET + SAIS_URL are set
+  if (process.env.CLIENT_SECRET && process.env.SAIS_URL && process.env.SAIS_ID_URL && process.env.CLIENT_ID) {
+    const token = await getSaisToken();
+    const res = await axios.post(
+      `${process.env.SAIS_URL}/v1/chat/completions`,
+      { model: model || 'gpt-4o', max_tokens: 2048, messages: [{ role: 'user', content: prompt }] },
+      { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, timeout: 60000 }
+    );
+    return res.data.choices[0].message.content;
+  }
+  // Fallback: Anthropic direct
   const response = await axios.post(
     'https://api.anthropic.com/v1/messages',
+    { model, max_tokens: 2048, messages: [{ role: 'user', content: prompt }] },
     {
-      model,
-      max_tokens: 2048,
-      messages: [{ role: 'user', content: prompt }],
-    },
-    {
-      headers: {
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
+      headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
       timeout: 60000,
     }
   );
@@ -204,11 +223,11 @@ async function detectFields(project, options) {
   }
 
   const apiKey = options.apiKey || process.env.ANTHROPIC_API_KEY;
-  const model  = options.model  || 'claude-sonnet-4-6';
+  const model  = options.model  || (process.env.CLIENT_SECRET ? 'gpt-4o' : 'claude-sonnet-4-6');
 
-  if (!apiKey) {
-    console.error(chalk.red('❌ ANTHROPIC_API_KEY not set'));
-    console.error(chalk.yellow('   export ANTHROPIC_API_KEY=sk-ant-...'));
+  const usingSais = !!(process.env.CLIENT_SECRET && process.env.SAIS_URL);
+  if (!apiKey && !usingSais) {
+    console.error(chalk.red('❌ No AI credentials — set ANTHROPIC_API_KEY or CLIENT_SECRET+SAIS_URL'));
     process.exit(1);
   }
 
@@ -296,7 +315,7 @@ async function detectFields(project, options) {
   const claudeSpinner = ora(`Asking ${model} to identify fields…`).start();
   let result;
   try {
-    result = await callClaude(buildPrompt(projectKey, compactIssues), apiKey, model);
+    result = await callAI(buildPrompt(projectKey, compactIssues), apiKey, model);
     claudeSpinner.succeed(chalk.green('✓ Analysis complete'));
   } catch (err) {
     claudeSpinner.fail(chalk.red('Claude API call failed'));
