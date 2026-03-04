@@ -187,7 +187,7 @@ program
 program
   .command('detect-fields [project]')
   .description('Sample Jira tickets and identify custom field mappings using Claude')
-  .option('--tract <dir>', 'Tract ticket repository directory (defaults to current)', '.')
+  .option('--tract <dir>', 'Tract ticket repository directory (defaults to current)')
   .option('--jira <url>', 'Jira URL (or set jira.url in config.yaml)')
   .option('--project <key>', 'Project key (or pass as argument)')
   .option('--user <username>', 'Jira username (or JIRA_USERNAME env var)')
@@ -200,6 +200,15 @@ program
   .option('--agent', 'Write field data to a file for analysis by an LLM agent (skips AI API call)')
   .option('--agent-output <file>', 'Output path for --agent mode (default: /tmp/tract-field-data.json)')
   .action(require('../commands/detect-fields'));
+
+// accept-mappings — accept detected field mappings and unblock project sync
+program
+  .command('accept-mappings [project]')
+  .description('Accept field mappings and start project sync (deletes pending-field-detection sentinel)')
+  .option('--tract <dir>', 'Tract ticket repository directory (defaults to current)')
+  .option('--project <key>', 'Project key (or pass as argument)')
+  .option('--keep-payload', 'Keep the detect-fields payload JSON (deleted by default)')
+  .action(require('../commands/accept-mappings'));
 
 // auth — register Jira API token on sync server
 program
