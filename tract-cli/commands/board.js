@@ -124,11 +124,19 @@ class BoardCommand {
       );
     }
 
-    // Assignee filter
+    // Assignee filter (comma-separated = OR)
     if (this.options.assignee) {
-      const assignee = this.normalizeUsername(this.options.assignee);
-      filtered = filtered.filter(t => 
-        t.assignee && t.assignee.toLowerCase() === assignee
+      const assignees = this.options.assignee.split(',').map(a => this.normalizeUsername(a.trim()));
+      filtered = filtered.filter(t =>
+        t.assignee && assignees.includes(t.assignee.toLowerCase())
+      );
+    }
+
+    // Exclude label filter
+    if (this.options.excludeLabel) {
+      const excluded = this.options.excludeLabel.split(',').map(l => l.trim().toLowerCase());
+      filtered = filtered.filter(t =>
+        !Array.isArray(t.labels) || !t.labels.some(l => excluded.includes(l.toLowerCase()))
       );
     }
 
@@ -283,9 +291,10 @@ class BoardCommand {
 
     if (this.options.sprint) config.filters.sprint = this.options.sprint;
     if (this.options.label) config.filters.labels = this.options.label.split(',').map(l => l.trim());
-    if (this.options.assignee) config.filters.assignee = this.options.assignee;
+    if (this.options.assignee) config.filters.assignee = this.options.assignee.split(',').map(a => a.trim());
     if (this.options.status) config.filters.status = this.options.status.split(',').map(s => s.trim());
     if (this.options.excludeStatus) config.filters.exclude_status = this.options.excludeStatus.split(',').map(s => s.trim());
+    if (this.options.excludeLabel) config.filters.exclude_labels = this.options.excludeLabel.split(',').map(l => l.trim());
 
     const configPath = path.join(this.boardsDir, `${name}.yaml`);
     fs.writeFileSync(configPath, yaml.dump(config), 'utf8');
@@ -316,9 +325,11 @@ class BoardCommand {
     if (config.filters) {
       if (config.filters.sprint) this.options.sprint = config.filters.sprint;
       if (config.filters.labels) this.options.label = config.filters.labels.join(',');
-      if (config.filters.assignee) this.options.assignee = config.filters.assignee;
+      if (config.filters.assignee) this.options.assignee = Array.isArray(config.filters.assignee)
+        ? config.filters.assignee.join(',') : config.filters.assignee;
       if (config.filters.status) this.options.status = config.filters.status.join(',');
       if (config.filters.exclude_status) this.options.excludeStatus = config.filters.exclude_status.join(',');
+      if (config.filters.exclude_labels) this.options.excludeLabel = config.filters.exclude_labels.join(',');
     }
 
     // Store full config including swimlanes
@@ -363,7 +374,8 @@ class BoardCommand {
         const filters = [];
         if (b.config.filters.sprint) filters.push(`sprint: ${b.config.filters.sprint}`);
         if (b.config.filters.labels) filters.push(`labels: ${b.config.filters.labels.join(', ')}`);
-        if (b.config.filters.assignee) filters.push(`assignee: ${b.config.filters.assignee}`);
+        if (b.config.filters.assignee) filters.push(`assignee: ${[].concat(b.config.filters.assignee).join(', ')}`);
+        if (b.config.filters.exclude_labels) filters.push(`exclude-labels: ${b.config.filters.exclude_labels.join(', ')}`);
         if (filters.length > 0) {
           console.log(`    Filters: ${filters.join(' | ')}`);
         }
@@ -473,6 +485,7 @@ async function boardCommand(configName, cmdObj) {
     assignee: cmdObj.assignee || null,
     status: cmdObj.status || null,
     excludeStatus: cmdObj.excludeStatus || null,
+    excludeLabel: cmdObj.excludeLabel || null,
     noWatch: !cmdObj.watch,
     save: cmdObj.save || null,
     list: cmdObj.list || false,

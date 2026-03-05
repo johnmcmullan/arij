@@ -303,14 +303,46 @@ tract import --commit
 
 Open the interactive terminal board (TUI). Real-time kanban/swimlane view of all tickets.
 
-**Optional:**
+**Options:**
 - `--project <prefix>` — Filter to specific project(s), comma-separated
 - `--workspace <dir>` — Workspace root (default: auto-detected from current directory)
+- `--assignee <names>` — Filter by assignee; comma-separate for OR matching (`john,alice`, `@me`)
+- `--label <labels>` — Show only tickets with any of these labels (comma-separated)
+- `--exclude-label <labels>` — Hide tickets that have any of these labels (comma-separated)
+- `--status <statuses>` — Show only these statuses (comma-separated)
+- `--exclude-status <statuses>` — Hide these statuses (comma-separated)
+- `--sprint <id>` — Filter by sprint (`current`, `backlog`, `latest`, `all`, or a sprint ID)
+- `--save <name>` — Save the current filter set as a named board config
+- `--list` — List all saved board configs
 
-**Example:**
+**Examples:**
 ```bash
 tract board
 tract board --project APP,FE
+tract board --assignee @me
+tract board --assignee john,alice,vijays --exclude-label tsd_apps_exclude
+tract board --project APP --exclude-status done,verified --save my-board
+tract board my-board
+```
+
+**Saved boards:**
+
+Filters can be saved and reused by name. The config is stored as a YAML file in
+`.tract/boards/<name>.yaml` and supports all the filter options above, including
+multi-value assignee lists and exclude-labels:
+
+```yaml
+name: Apps Team Board
+filters:
+  project: APP
+  assignee:
+    - john.mcmullan
+    - alice.smith
+  exclude_labels:
+    - tsd_apps_exclude
+  exclude_status:
+    - done
+    - verified
 ```
 
 **What it shows:**
