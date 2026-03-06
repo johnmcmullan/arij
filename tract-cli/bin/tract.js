@@ -106,6 +106,21 @@ program
   .option('--server <url>', 'Sync server URL (or use TRACT_SYNC_SERVER env var)')
   .action(require('../commands/worklogs'));
 
+{
+  const { teamsList, teamsShow } = require('../commands/teams');
+  const teamsCmd = program.command('teams').description('List and inspect Tempo teams');
+  teamsCmd.command('list')
+    .description('List all teams')
+    .option('--rd', 'Show only R&D teams')
+    .option('--jurisdiction <code>', 'Filter by jurisdiction (uk, eu, us, apac, in)')
+    .option('--dir <path>', 'Path to worklogs/teams directory (or set TRACT_WORKLOGS_DIR)')
+    .action((opts) => teamsList(opts));
+  teamsCmd.command('show <name-or-id>')
+    .description('Show team details and members')
+    .option('--dir <path>', 'Path to worklogs/teams directory (or set TRACT_WORKLOGS_DIR)')
+    .action((nameOrId, opts) => teamsShow(nameOrId, opts));
+}
+
 program
   .command('board [config]')
   .description('Show beautiful TUI dashboard (view-only, real-time, btop-style)')
