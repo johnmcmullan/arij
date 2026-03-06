@@ -268,6 +268,45 @@ tract worklogs APP-1234
 
 ---
 
+### `tract teams`
+
+List and inspect Tempo teams synced from Jira. Teams are stored as YAML files in the `worklogs/teams/` directory of the worklogs clone.
+
+**Subcommands:**
+
+#### `tract teams list`
+
+```bash
+tract teams list                          # all teams, grouped by hierarchy
+tract teams list --rd                     # R&D teams only
+tract teams list --jurisdiction eu        # teams in a specific jurisdiction
+tract teams list --rd --jurisdiction uk   # combine filters
+```
+
+**Jurisdictions:** `eu`, `us`, `uk`, `apac`, `in`
+
+#### `tract teams show <name-or-id>`
+
+```bash
+tract teams show "Engineering PT - Principal Trading"
+tract teams show 33        # by numeric Tempo team ID
+tract teams show "PT"      # fuzzy name match
+```
+
+Shows team metadata, hierarchy, jurisdiction, R&D flag, active members with availability % and membership dates, and former members.
+
+**Options (both subcommands):**
+- `--dir <path>` - Path to the `teams/` directory (or set `TRACT_WORKLOGS_DIR` pointing to the worklogs clone root)
+
+**Setup:** Clone the worklogs repo and set `TRACT_WORKLOGS_DIR`:
+
+```bash
+tract clone worklogs --server <host>
+export TRACT_WORKLOGS_DIR=~/work/worklogs
+```
+
+---
+
 ### `tract import`
 
 Import tickets from Jira into an existing Tract repo.
