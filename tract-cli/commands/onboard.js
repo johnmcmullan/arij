@@ -317,14 +317,6 @@ See: https://github.com/johnmcmullan/tract
   const token = options.token || serverEnv.JIRA_API_TOKEN || process.env.JIRA_TOKEN;
   const password = options.password || process.env.JIRA_PASSWORD;
 
-  if (!username) {
-    console.error(chalk.red('❌ Error: --user required or set JIRA_USERNAME'));
-    if (serverEnvCandidates.some(f => fs.existsSync(f))) {
-      console.error(chalk.yellow('   (JIRA_USERNAME not found in server env file)'));
-    }
-    process.exit(1);
-  }
-
   if (!token && !password) {
     console.error(chalk.red('❌ Error: --token or --password required, or set JIRA_TOKEN/JIRA_PASSWORD'));
     if (serverEnvCandidates.some(f => fs.existsSync(f))) {
@@ -373,9 +365,9 @@ See: https://github.com/johnmcmullan/tract
   const spinner = ora('Connecting to Jira...').start();
 
   try {
-    // Create Jira client
+    // Create Jira client — omit username for bearer token (PAT) auth
     const auth = {
-      username: username,
+      username: username || '',
       password: token || password
     };
     const jira = new JiraClient(jiraUrl, auth);
