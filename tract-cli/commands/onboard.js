@@ -143,7 +143,6 @@ async function onboard(options) {
 
   // Validate inputs
   const isLocal = options.local;
-  const jiraUrl = options.jira;
   const projectKey = options.project ? options.project.toUpperCase() : null;
   
   if (!projectKey) {
@@ -151,6 +150,28 @@ async function onboard(options) {
     process.exit(1);
   }
   let outputDir = path.resolve(options.output);
+
+  // Load stored credentials from the server env file if present
+  // (allows `tract onboard --project SERV` on a server without re-specifying credentials)
+  function parseEnvFile(filePath) {
+    const vars = {};
+    try {
+      const lines = fs.readFileSync(filePath, 'utf8').split('\n');
+      for (const line of lines) {
+        const m = line.match(/^([A-Z_]+)=(.*)$/);
+        if (m) vars[m[1]] = m[2].trim();
+      }
+    } catch (_) { /* not readable — skip */ }
+    return vars;
+  }
+  const serverEnvCandidates = ['/etc/tract-sync/env', path.join(outputDir, 'bin', 'env')];
+  let serverEnv = {};
+  for (const f of serverEnvCandidates) {
+    if (fs.existsSync(f)) { serverEnv = parseEnvFile(f); break; }
+  }
+
+  const jiraUrl = options.jira
+    || (serverEnv.JIRA_BASE_URL ? serverEnv.JIRA_BASE_URL.replace(/\/$/, '') : null);
   const submodulePath = options.submodule;
   const remoteUrl = options.remote;
   const isSubmoduleMode = !!submodulePath;
@@ -291,18 +312,24 @@ See: https://github.com/johnmcmullan/tract
     process.exit(1);
   }
 
-  // Get credentials
-  const username = options.user || process.env.JIRA_USERNAME;
-  const token = options.token || process.env.JIRA_TOKEN;
+  // Get credentials — fall back to server env, then process env
+  const username = options.user || serverEnv.JIRA_USERNAME || process.env.JIRA_USERNAME;
+  const token = options.token || serverEnv.JIRA_API_TOKEN || process.env.JIRA_TOKEN;
   const password = options.password || process.env.JIRA_PASSWORD;
 
   if (!username) {
     console.error(chalk.red('❌ Error: --user required or set JIRA_USERNAME'));
+    if (serverEnvCandidates.some(f => fs.existsSync(f))) {
+      console.error(chalk.yellow('   (JIRA_USERNAME not found in server env file)'));
+    }
     process.exit(1);
   }
 
   if (!token && !password) {
     console.error(chalk.red('❌ Error: --token or --password required, or set JIRA_TOKEN/JIRA_PASSWORD'));
+    if (serverEnvCandidates.some(f => fs.existsSync(f))) {
+      console.error(chalk.yellow('   (JIRA_API_TOKEN not found in server env file)'));
+    }
     process.exit(1);
   }
 
