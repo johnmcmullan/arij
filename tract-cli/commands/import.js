@@ -4,6 +4,7 @@ const yaml = require('js-yaml');
 const chalk = require('chalk');
 const JiraClient = require('../lib/jira-client');
 const TicketImporter = require('../lib/ticket-importer');
+const { loadServerEnv } = require('../lib/server-env');
 
 async function importCommand(options) {
   const tractDir = path.resolve(options.tract || '.');
@@ -17,14 +18,32 @@ async function importCommand(options) {
   }
 
   const config = yaml.load(fs.readFileSync(configPath, 'utf8'));
-  
-  // Two modes: 
-  // 1. Sync configured (use config) - ongoing bidirectional sync
-  // 2. One-time import (use --jira flag) - migration to Tract-only
-  
-  let jiraUrl = options.jira || config.jira?.url;
   const projectKey = options.project || config.project;
-  
+
+  // On a tract sync server, the daemon owns all imports — don't reimport manually.
+  const serverEnv = loadServerEnv(tractDir);
+  if (serverEnv.envFile && !options.force) {
+    const projects = (serverEnv.raw?.JIRA_INCLUDE_PROJECTS || '').split(',').map(s => s.trim());
+    const inDaemon = projects.includes(projectKey);
+    console.log(chalk.bold.cyan('🔄 Tract Sync Server detected\n'));
+    console.log(chalk.gray(`   Env file: ${serverEnv.envFile}`));
+    if (inDaemon) {
+      console.log(chalk.green(`   ${projectKey} is already configured — the daemon will sync it automatically.\n`));
+      console.log(chalk.yellow('   To trigger an immediate full sync, reload the daemon:'));
+      console.log(chalk.gray('     sudo systemctl reload tract-sync\n'));
+    } else {
+      console.log(chalk.yellow(`   ${projectKey} is not yet in JIRA_INCLUDE_PROJECTS.\n`));
+      console.log(chalk.yellow('   Add it and reload:'));
+      console.log(chalk.gray(`     sudo sed -i 's/JIRA_INCLUDE_PROJECTS=.*/&,${projectKey}/' ${serverEnv.envFile}`));
+      console.log(chalk.gray('     sudo systemctl reload tract-sync\n'));
+    }
+    console.log(chalk.gray('   (Use --force to run a manual import anyway)\n'));
+    process.exit(0);
+  }
+  const resolvedJiraUrl = options.jira || config.jira?.url || serverEnv.jiraUrl || config.upstream;
+
+  let jiraUrl = resolvedJiraUrl;
+
   // Clean up null values from YAML
   if (jiraUrl === 'null' || jiraUrl === null) {
     jiraUrl = null;

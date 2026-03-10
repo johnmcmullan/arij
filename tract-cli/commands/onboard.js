@@ -8,6 +8,7 @@ const { prompt } = require('enquirer');
 const JiraClient = require('../lib/jira-client');
 const ConfigGenerator = require('../lib/config-generator');
 const TicketImporter = require('../lib/ticket-importer');
+const { loadServerEnv, parseEnvFile } = require('../lib/server-env');
 
 
 /**
@@ -153,25 +154,10 @@ async function onboard(options) {
 
   // Load stored credentials from the server env file if present
   // (allows `tract onboard --project SERV` on a server without re-specifying credentials)
-  function parseEnvFile(filePath) {
-    const vars = {};
-    try {
-      const lines = fs.readFileSync(filePath, 'utf8').split('\n');
-      for (const line of lines) {
-        const m = line.match(/^([A-Z_]+)=(.*)$/);
-        if (m) vars[m[1]] = m[2].trim();
-      }
-    } catch (_) { /* not readable — skip */ }
-    return vars;
-  }
+  const serverEnvData = loadServerEnv(outputDir);
   const serverEnvCandidates = ['/etc/tract-sync/env', path.join(outputDir, 'bin', 'env')];
-  let serverEnv = {};
-  for (const f of serverEnvCandidates) {
-    if (fs.existsSync(f)) { serverEnv = parseEnvFile(f); break; }
-  }
 
-  const jiraUrl = options.jira
-    || (serverEnv.JIRA_BASE_URL ? serverEnv.JIRA_BASE_URL.replace(/\/$/, '') : null);
+  const jiraUrl = options.jira || serverEnvData.jiraUrl;
   const submodulePath = options.submodule;
   const remoteUrl = options.remote;
   const isSubmoduleMode = !!submodulePath;
@@ -313,8 +299,8 @@ See: https://github.com/johnmcmullan/tract
   }
 
   // Get credentials — fall back to server env, then process env
-  const username = options.user || serverEnv.JIRA_USERNAME || process.env.JIRA_USERNAME;
-  const token = options.token || serverEnv.JIRA_API_TOKEN || process.env.JIRA_TOKEN;
+  const username = options.user || serverEnvData.username || process.env.JIRA_USERNAME;
+  const token = options.token || serverEnvData.token || process.env.JIRA_TOKEN;
   const password = options.password || process.env.JIRA_PASSWORD;
 
   if (!token && !password) {
@@ -636,8 +622,13 @@ See: https://github.com/johnmcmullan/tract
       console.log(chalk.gray(`   cd ${path.relative(process.cwd(), workingDir)}`));
     }
 
-    if (!importTickets) {
-      console.log(chalk.gray(`   tract import                # pull tickets from Jira`));
+    if (serverRootDir) {
+      console.log(chalk.yellow('   Reload the sync daemon to start pulling tickets:'));
+      console.log(chalk.gray('     sudo systemctl reload tract-sync\n'));
+    } else {
+      if (!importTickets) {
+        console.log(chalk.gray(`   tract import                # pull tickets from Jira`));
+      }
     }
 
     if (metadata.components.length > 0) {
