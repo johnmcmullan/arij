@@ -642,7 +642,7 @@ See: https://github.com/johnmcmullan/tract
 
     if (metadata.components.length > 0) {
       console.log(chalk.gray(`   tract map-components        # map Jira components to code paths`));
-      console.log(chalk.gray(`                               # (optional — skip if no code checkout)\n`));
+      console.log(chalk.gray(`                               # (optional — skip straight to tract board)`));
     }
 
     console.log(chalk.gray(`   tract serve                 # open http://localhost:7766`));
