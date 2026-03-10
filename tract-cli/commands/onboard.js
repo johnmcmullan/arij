@@ -640,7 +640,7 @@ See: https://github.com/johnmcmullan/tract
       }
     }
 
-    if (metadata.components.length > 0) {
+    if (!serverRootDir && metadata.components.length > 0) {
       console.log(chalk.gray(`   tract map-components        # map Jira components to code paths`));
     }
 
