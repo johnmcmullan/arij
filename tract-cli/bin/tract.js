@@ -79,13 +79,13 @@ program
 
 program
   .command('log')
-  .description('Log time to an issue')
+  .description('Log time to an issue (saved locally, synced to Jira by daemon)')
   .argument('<issue>', 'Issue key (e.g., APP-1002)')
-  .argument('<time>', 'Time spent (e.g., 2h, 30m, 1d)')
+  .argument('<time>', 'Time spent (e.g., 2h, 30m, 1h30m, 1d)')
   .argument('[comment]', 'Work description')
-  .option('--server <url>', 'Sync server URL (or use TRACT_SYNC_SERVER env var)')
-  .option('--author <name>', 'Author name (defaults to git user.name)')
+  .option('--author <username>', 'Jira username (defaults to git user.email local-part)')
   .option('--started <datetime>', 'Start time (ISO 8601, defaults to now)')
+  .option('--worklogs-dir <path>', 'Path to local worklogs git repo (or set TRACT_WORKLOGS_DIR)')
   .action(require('../commands/log'));
 
 program
