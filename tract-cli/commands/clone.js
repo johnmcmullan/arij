@@ -162,11 +162,14 @@ module.exports = async function clone(projectPrefix, options) {
   if (!serverUrl) {
     const sshHost = options.server;
     if (sshHost) {
-      // Use git:// daemon (port 9418); --ssh flag to force SSH
+      // Use git:// daemon (port 9418); --ssh flag to force SSH.
+      // Keep original case for the repo path (git-daemon is case-sensitive);
+      // use uppercase only for the local ~/.tract dir and workspace entry.
       const prefix = projectPrefix.toUpperCase();
+      const repoPath = projectPrefix; // preserve original case for server path
       const repoUrl = options.ssh
-        ? `tract@${sshHost}:/opt/tract/${prefix}`
-        : `git://${sshHost}/${prefix}`;
+        ? `tract@${sshHost}:/opt/tract/${repoPath}`
+        : `git://${sshHost}/${repoPath}`;
       const destDir = options.dest
         ? path.resolve(options.dest)
         : path.join(TRACT_DIR, prefix);

@@ -8,22 +8,51 @@ const chalk = require('chalk');
 // ── Find teams directory ───────────────────────────────────────────────────────
 
 function findTeamsDir(options) {
+  const HOME = process.env.HOME || '/root';
+  const TRACT_DIR = path.join(HOME, '.tract');
+
   // 1. Explicit --dir flag
-  if (options.dir) {
-    return path.resolve(options.dir);
-  }
+  if (options.dir) return path.resolve(options.dir);
+
   // 2. TRACT_WORKLOGS_DIR env var
   if (process.env.TRACT_WORKLOGS_DIR) {
     return path.join(process.env.TRACT_WORKLOGS_DIR, 'teams');
   }
-  // 3. Common local clone locations
+
+  // 3. workspace.yaml — look for any project whose path contains 'worklogs'
+  const wsFile = path.join(TRACT_DIR, 'workspace.yaml');
+  if (fs.existsSync(wsFile)) {
+    try {
+      const ws = yaml.load(fs.readFileSync(wsFile, 'utf8')) || {};
+      for (const p of ws.projects || []) {
+        if ((p.prefix || '').toLowerCase() === 'worklogs' ||
+            (p.path  || '').toLowerCase().includes('worklogs')) {
+          const candidate = path.join(p.path, 'teams');
+          if (fs.existsSync(candidate)) return candidate;
+        }
+      }
+    } catch { /* ignore corrupt workspace.yaml */ }
+  }
+
+  // 4. Scan ~/.tract/ for any git repo that has a teams/ subdir (worklogs clone)
+  if (fs.existsSync(TRACT_DIR)) {
+    for (const entry of fs.readdirSync(TRACT_DIR)) {
+      if (entry.toLowerCase().includes('worklogs')) {
+        const candidate = path.join(TRACT_DIR, entry, 'teams');
+        if (fs.existsSync(candidate)) return candidate;
+      }
+    }
+  }
+
+  // 5. Conventional non-~/.tract clone paths
   const candidates = [
-    path.join(process.env.HOME || '/root', 'work', 'worklogs', 'teams'),
-    path.join(process.env.HOME || '/root', 'worklogs', 'teams'),
+    path.join(HOME, 'work', 'worklogs', 'teams'),
+    path.join(HOME, 'worklogs', 'teams'),
   ];
   for (const c of candidates) {
     if (fs.existsSync(c)) return c;
   }
+
   return null;
 }
 
@@ -47,8 +76,9 @@ function loadTeams(teamsDir) {
 function teamsList(options) {
   const teamsDir = findTeamsDir(options);
   if (!teamsDir || !fs.existsSync(teamsDir)) {
-    console.error(chalk.red('❌ Teams directory not found.'));
-    console.error(chalk.gray('  Set TRACT_WORKLOGS_DIR or use --dir <path/to/worklogs/teams>'));
+    console.error(chalk.red('❌ Worklogs repo not found.'));
+    console.error(chalk.gray('  Clone it first:  tract clone worklogs --server <host>'));
+    console.error(chalk.gray('  Or use:          --dir <path/to/worklogs/teams>'));
     process.exit(1);
   }
 
@@ -93,8 +123,9 @@ function teamsList(options) {
 function teamsShow(nameOrId, options) {
   const teamsDir = findTeamsDir(options);
   if (!teamsDir || !fs.existsSync(teamsDir)) {
-    console.error(chalk.red('❌ Teams directory not found.'));
-    console.error(chalk.gray('  Set TRACT_WORKLOGS_DIR or use --dir <path/to/worklogs/teams>'));
+    console.error(chalk.red('❌ Worklogs repo not found.'));
+    console.error(chalk.gray('  Clone it first:  tract clone worklogs --server <host>'));
+    console.error(chalk.gray('  Or use:          --dir <path/to/worklogs/teams>'));
     process.exit(1);
   }
 
