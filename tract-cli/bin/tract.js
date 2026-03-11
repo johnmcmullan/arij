@@ -178,6 +178,29 @@ program
   .description('Pull all tract repos in the current workspace to get latest tickets')
   .action(require('../commands/pull'));
 
+// ── Semantic search (qmd wrappers) ──────────────────────────────────────────
+const { searchCommand, vsearchCommand, queryCommand } = require('../commands/search');
+const searchOpts = cmd => cmd
+  .argument('<query>', 'Search query')
+  .option('-p, --project <keys>', 'Limit to project(s), comma-separated (e.g. TB,SERV)')
+  .option('--all', 'Return all matches (no limit)')
+  .option('--files', 'Return file paths only')
+  .option('--min-score <n>', 'Minimum relevance score (0–1)');
+
+searchOpts(program.command('search').description('Fast keyword search across ticket collections (requires qmd)'))
+  .action(searchCommand);
+searchOpts(program.command('vsearch').description('Semantic vector search across ticket collections (requires qmd)'))
+  .action(vsearchCommand);
+searchOpts(program.command('query').description('Hybrid search + reranking across ticket collections (requires qmd, best quality)'))
+  .action(queryCommand);
+
+program
+  .command('embed')
+  .description('Set up qmd collections for all cloned projects and generate embeddings')
+  .option('--setup-only', 'Register collections and context but skip running qmd embed')
+  .option('-v, --verbose', 'Show context strings added per project')
+  .action(require('../commands/embed'));
+
 program
   .command('branch <ticket>')
   .description('Create a git branch for a ticket and record it in frontmatter')
