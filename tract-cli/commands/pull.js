@@ -9,7 +9,7 @@
 const fs   = require('fs');
 const path = require('path');
 const yaml = require('js-yaml');
-const { execSync } = require('child_process');
+const { execSync, spawnSync } = require('child_process');
 const chalk = require('chalk');
 
 const TRACT_DIR      = path.join(process.env.HOME, '.tract');
@@ -118,18 +118,41 @@ function isGitRepo(dir) {
 }
 
 function pullRepo(dir, label) {
-  try {
-    const out = execSync('git pull --ff-only 2>&1', { cwd: dir, encoding: 'utf8' }).trim();
-    const summary = out.includes('Already up to date')
-      ? chalk.gray('already up to date')
-      : chalk.green(out.split('\n').slice(-1)[0]);
-    console.log(`  ${chalk.cyan('↓')} ${label.padEnd(20)} ${summary}`);
-    return true;
-  } catch (err) {
-    const msg = (err.stdout || err.message || '').trim().split('\n')[0];
+  const prefix = `  ${chalk.cyan('↓')} ${label.padEnd(20)} `;
+
+  // Announce before starting — large repos take time and silence looks like a hang
+  process.stdout.write(prefix + chalk.gray('fetching...\n'));
+
+  // Fetch with progress on stderr so the user sees transfer activity
+  const fetch = spawnSync('git', ['fetch', '--progress'], {
+    cwd: dir,
+    stdio: ['ignore', 'ignore', 'inherit'],  // stderr → terminal (git progress)
+  });
+
+  if (fetch.status !== 0) {
+    console.log(`  ${chalk.red('✗')} ${label.padEnd(20)} ${chalk.red('fetch failed')}`);
+    return false;
+  }
+
+  // Fast-forward merge (instant after fetch)
+  const merge = spawnSync('git', ['merge', '--ff-only', 'FETCH_HEAD'], {
+    cwd: dir,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+
+  const out = (merge.stdout || '').trim();
+  if (merge.status !== 0) {
+    const msg = (merge.stderr || out || 'merge failed').trim().split('\n')[0];
     console.log(`  ${chalk.red('✗')} ${label.padEnd(20)} ${chalk.red(msg)}`);
     return false;
   }
+
+  const summary = out.includes('Already up to date')
+    ? chalk.gray('up to date')
+    : chalk.green(out.split('\n').pop() || 'updated');
+  console.log(`  ${chalk.cyan('✓')} ${label.padEnd(20)} ${summary}`);
+  return true;
 }
 
 module.exports = function pull(options) {
