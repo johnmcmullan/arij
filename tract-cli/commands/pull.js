@@ -123,8 +123,8 @@ function pullRepo(dir, label) {
   // Announce before starting — large repos take time and silence looks like a hang
   process.stdout.write(prefix + chalk.gray('fetching...\n'));
 
-  // Fetch with progress on stderr so the user sees transfer activity
-  const fetch = spawnSync('git', ['fetch', '--progress'], {
+  // Fetch latest (keep shallow with --depth=1)
+  const fetch = spawnSync('git', ['fetch', '--depth=1', '--progress'], {
     cwd: dir,
     stdio: ['ignore', 'ignore', 'inherit'],  // stderr → terminal (git progress)
   });
@@ -134,24 +134,30 @@ function pullRepo(dir, label) {
     return false;
   }
 
-  // Fast-forward merge (instant after fetch)
-  const merge = spawnSync('git', ['merge', '--ff-only', 'FETCH_HEAD'], {
+  // Check if we're already up to date before resetting
+  const localHead  = spawnSync('git', ['rev-parse', 'HEAD'],       { cwd: dir, encoding: 'utf8' }).stdout.trim();
+  const fetchHead  = spawnSync('git', ['rev-parse', 'FETCH_HEAD'], { cwd: dir, encoding: 'utf8' }).stdout.trim();
+
+  if (localHead === fetchHead) {
+    console.log(`  ${chalk.cyan('✓')} ${label.padEnd(20)} ${chalk.gray('up to date')}`);
+    return true;
+  }
+
+  // Hard reset to fetched tip — safe for read-only ticket mirrors
+  const reset = spawnSync('git', ['reset', '--hard', 'FETCH_HEAD'], {
     cwd: dir,
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 
-  const out = (merge.stdout || '').trim();
-  if (merge.status !== 0) {
-    const msg = (merge.stderr || out || 'merge failed').trim().split('\n')[0];
+  const out = (reset.stdout || '').trim();
+  if (reset.status !== 0) {
+    const msg = (reset.stderr || out || 'reset failed').trim().split('\n')[0];
     console.log(`  ${chalk.red('✗')} ${label.padEnd(20)} ${chalk.red(msg)}`);
     return false;
   }
 
-  const summary = out.includes('Already up to date')
-    ? chalk.gray('up to date')
-    : chalk.green(out.split('\n').pop() || 'updated');
-  console.log(`  ${chalk.cyan('✓')} ${label.padEnd(20)} ${summary}`);
+  console.log(`  ${chalk.cyan('✓')} ${label.padEnd(20)} ${chalk.green('updated')}`);
   return true;
 }
 
