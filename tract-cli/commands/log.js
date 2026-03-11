@@ -83,8 +83,8 @@ async function log(issue, time, comment, options) {
   if (!author) {
     try {
       author = execSync('git config user.email', { encoding: 'utf8' }).trim();
-      // Strip domain — Jira username is typically the local part
-      if (author.includes('@')) author = author.split('@')[0];
+      // Strip domain — Jira username is typically the local part, lowercase
+      if (author.includes('@')) author = author.split('@')[0].toLowerCase();
     } catch {
       console.error(chalk.red('❌ Could not determine author from git config user.email'));
       process.exit(1);
