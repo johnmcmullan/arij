@@ -6,9 +6,25 @@ const JiraClient = require('../lib/jira-client');
 const TicketImporter = require('../lib/ticket-importer');
 const { loadServerEnv } = require('../lib/server-env');
 
+function findTractRoot(startDir) {
+  let dir = path.resolve(startDir);
+  while (true) {
+    if (fs.existsSync(path.join(dir, '.tract', 'config.yaml'))) return dir;
+    const parent = path.dirname(dir);
+    if (parent === dir) return null; // reached filesystem root
+    dir = parent;
+  }
+}
+
 async function importCommand(options) {
-  const tractDir = path.resolve(options.tract || '.');
-  
+  // Commander sets options.tract to '.' by default, so we can't use truthiness
+  // to detect an explicit --tract flag.  Only trust the value when it differs
+  // from the Commander default, or when the user explicitly passed --tract.
+  const tractExplicit = process.argv.includes('--tract');
+  const tractDir = tractExplicit
+    ? path.resolve(options.tract)
+    : (findTractRoot(process.cwd()) || path.resolve('.'));
+
   // Load config FIRST (before asking for credentials)
   const configPath = path.join(tractDir, '.tract', 'config.yaml');
   if (!fs.existsSync(configPath)) {
@@ -84,9 +100,9 @@ async function importCommand(options) {
   // Get auth from environment or options
   const username = options.user || process.env.JIRA_USERNAME;
   const password = options.password || process.env.JIRA_PASSWORD;
-  const token = options.token || process.env.JIRA_TOKEN;
+  const token = options.token || process.env.JIRA_TOKEN || process.env.JIRA_API_TOKEN;
 
-  if (!username || !(password || token)) {
+  if (!(password || token)) {
     console.error(chalk.red('❌ Error: Jira credentials required\n'));
     console.error(chalk.yellow('Set environment variables:'));
     console.error(chalk.gray('   export JIRA_USERNAME=you@company.com'));

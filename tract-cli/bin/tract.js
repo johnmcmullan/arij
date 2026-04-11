@@ -61,6 +61,7 @@ program
   .option('--resume', 'Skip tickets that already have a .md file (useful after interrupted import)')
   .option('--concurrency <n>', 'Parallel page requests (default: auto-tuned from round-trip time)')
   .option('--commit', 'Auto-commit imported tickets to git')
+  .option('--force', 'Run import even on a sync server (bypasses daemon-active check)')
   .action(require('../commands/import'));
 
 program
@@ -258,5 +259,17 @@ program
   .option('--server <host>', 'Sync server hostname (or set sync_server in ~/.tract/workspace.yaml)')
   .option('--user <sshuser>', 'SSH user on server', 'tract')
   .action(require('../commands/auth.js'));
+
+// token — manage Personal Access Tokens
+program
+  .command('token [subcommand]')
+  .description('Manage Personal Access Tokens (PATs)')
+  .option('--name <name>', 'Token name')
+  .option('--ttl <days>', 'Time to live in days (default: 365)')
+  .option('--user <email>', 'User email (for create-service)')
+  .option('--all', 'List all tokens (admin only)')
+  .option('--server <host>', 'Tract server hostname (or use sync_server in ~/.tract/workspace.yaml)')
+  .option('--ssh-user <user>', 'SSH user on server', 'tract')
+  .action(require('../commands/token'));
 
 program.parse(process.argv);

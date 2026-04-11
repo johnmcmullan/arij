@@ -5,6 +5,19 @@ const yaml = require('js-yaml');
 const chalk = require('chalk');
 const ora = require('ora');
 
+/**
+ * Shard directory for a ticket key — mirrors the Rust daemon's shard_for().
+ * Uses the last digit of the numeric suffix: APP-33020 → "0", APP-47669 → "9".
+ */
+function shardFor(key) {
+  const pos = key.lastIndexOf('-');
+  if (pos !== -1) {
+    const num = key.slice(pos + 1);
+    if (num.length > 0) return num[num.length - 1];
+  }
+  return 'other';
+}
+
 class TicketImporter {
   constructor(jiraClient, tractDir, tractHome = path.join(os.homedir(), '.tract')) {
     this.jiraClient = jiraClient;
@@ -62,12 +75,18 @@ class TicketImporter {
       fs.mkdirSync(ticketsDir, { recursive: true });
     }
 
-    // Index existing files for O(1) lookup (needed for resume and updated count)
-    const existingKeys = new Set(
-      fs.readdirSync(ticketsDir)
-        .filter(f => f.endsWith('.md'))
-        .map(f => f.slice(0, -3))
-    );
+    // Index existing files for O(1) lookup (needed for resume and updated count).
+    // Scan both sharded subdirs (daemon format) and flat files (legacy imports).
+    const existingKeys = new Set();
+    for (const entry of fs.readdirSync(ticketsDir, { withFileTypes: true })) {
+      if (entry.isDirectory()) {
+        for (const f of fs.readdirSync(path.join(ticketsDir, entry.name))) {
+          if (f.endsWith('.md')) existingKeys.add(f.slice(0, -3));
+        }
+      } else if (entry.name.endsWith('.md')) {
+        existingKeys.add(entry.name.slice(0, -3));
+      }
+    }
 
     if (resume && existingKeys.size > 0) {
       console.log(chalk.gray(`Resuming: ${existingKeys.size} existing tickets will be skipped\n`));
@@ -111,7 +130,9 @@ class TicketImporter {
           }
 
           const markdown = this.convertToMarkdown(issue);
-          fs.writeFileSync(path.join(ticketsDir, `${issue.key}.md`), markdown, 'utf8');
+          const shardDir = path.join(ticketsDir, shardFor(issue.key));
+          fs.mkdirSync(shardDir, { recursive: true });
+          fs.writeFileSync(path.join(shardDir, `${issue.key}.md`), markdown, 'utf8');
 
           // Collect associated metadata for batch import after all pages land
           if (issue._worklogs?.length) allWorklogs.push(...issue._worklogs);
@@ -604,7 +625,7 @@ class TicketImporter {
     // Description
     let description = '';
     if (fields.description) {
-      description = this.convertJiraMarkdown(fields.description);
+      description = this.sanitizeContent(this.convertJiraMarkdown(fields.description));
     }
 
     // Comments
@@ -614,7 +635,7 @@ class TicketImporter {
       for (const comment of fields.comment.comments) {
         const author = comment.author?.name || comment.author?.displayName || 'Unknown';
         const created = new Date(comment.created).toISOString();
-        const body = this.convertJiraMarkdown(comment.body);
+        const body = this.sanitizeContent(this.convertJiraMarkdown(comment.body));
         commentsSection += `### ${author} - ${created}\n\n${body}\n\n`;
       }
     }
@@ -703,7 +724,8 @@ class TicketImporter {
     for (const [jiraField, tractField] of Object.entries(fieldMap)) {
       const value = fields[jiraField];
       if (value != null && value !== '') {
-        frontmatter[tractField] = this.normalizeCustomFieldValue(value);
+        const normalized = this.normalizeCustomFieldValue(value);
+        if (normalized != null) frontmatter[tractField] = normalized;
       }
     }
 
@@ -736,6 +758,12 @@ class TicketImporter {
       // Fallback: JSON so nothing is silently lost
       return JSON.stringify(value);
     }
+    if (typeof value === 'string') {
+      // Drop Java object toString() dumps (Jira dev-status fields etc.)
+      if (value.includes('com.atlassian.jira')) return null;
+      // Drop raw HTML blobs injected by Jira as custom field help text
+      if (value.includes('<div') || value.includes('<img') || value.includes('<span')) return null;
+    }
     return value;
   }
 
@@ -767,10 +795,23 @@ class TicketImporter {
 
   convertJiraMarkdown(text) {
     if (!text) return '';
-    
-    // First, normalize line endings (remove \r)
+
+    // Normalize line endings
     let converted = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-    
+
+    // Code blocks (must come first to protect content inside them)
+    converted = converted.replace(/\{code(?::([a-zA-Z]+))?\}([\s\S]*?)\{code\}/g, (match, lang, code) => {
+      return '```' + (lang || '') + '\n' + code.trim() + '\n```';
+    });
+
+    // Noformat blocks
+    converted = converted.replace(/\{noformat\}([\s\S]*?)\{noformat\}/g, (match, content) => {
+      return '```\n' + content.trim() + '\n```';
+    });
+
+    // Inline code
+    converted = converted.replace(/\{\{([^}]+)\}\}/g, '`$1`');
+
     // Headers
     converted = converted.replace(/^h1\.\s+/gm, '# ');
     converted = converted.replace(/^h2\.\s+/gm, '## ');
@@ -778,31 +819,162 @@ class TicketImporter {
     converted = converted.replace(/^h4\.\s+/gm, '#### ');
     converted = converted.replace(/^h5\.\s+/gm, '##### ');
     converted = converted.replace(/^h6\.\s+/gm, '###### ');
-    
-    // Bold and italic
-    converted = converted.replace(/\*([^*]+)\*/g, '**$1**'); // bold
-    converted = converted.replace(/_([^_]+)_/g, '*$1*'); // italic
-    
-    // Code blocks
-    converted = converted.replace(/\{code(?::([a-z]+))?\}([\s\S]*?)\{code\}/g, (match, lang, code) => {
-      return '```' + (lang || '') + '\n' + code.trim() + '\n```';
+
+    // Jira embedded images: !file.png|thumbnail! or !https://url!
+    // Replace with null-byte placeholders before any inline formatting runs,
+    // so hyphens in filenames can't be matched by the strikethrough pattern.
+    // Placeholders are restored after all inline formatting is complete.
+    const imageSlots = [];
+    converted = converted.replace(/!\s*([^|!\n]+?)(?:\|[^!\n]*)?\s*!/g, (match, src) => {
+      src = src.trim();
+      const rendered = (src.startsWith('http://') || src.startsWith('https://'))
+        ? `![](${src})`
+        : `[attachment: ${src}]`;
+      const idx = imageSlots.length;
+      imageSlots.push(rendered);
+      return `\x00IMG${idx}\x00`;
     });
-    
-    // Noformat blocks (same as code blocks but no language)
-    converted = converted.replace(/\{noformat\}([\s\S]*?)\{noformat\}/g, (match, content) => {
-      return '```\n' + content.trim() + '\n```';
-    });
-    
-    // Inline code
-    converted = converted.replace(/\{\{([^}]+)\}\}/g, '`$1`');
-    
-    // Lists - Jira uses * for bullets, # for numbered
-    // These should already work in markdown
-    
+
+    // Bold (before italic to avoid double-processing)
+    converted = converted.replace(/\*([^*\n]+)\*/g, '**$1**');
+
+    // Italic
+    converted = converted.replace(/_([^_\n]+)_/g, '*$1*');
+
+    // Strikethrough: -struck- → ~~struck~~
+    converted = converted.replace(/-([^-\n]+)-/g, '~~$1~~');
+
+    // Bullet lists: "* item" → "- item"
+    converted = converted.replace(/^\*\s+/gm, '- ');
+
     // Links
     converted = converted.replace(/\[([^\]|]+)\|([^\]]+)\]/g, '[$1]($2)');
-    
+
+    // Mentions: [~username] → @username
+    converted = converted.replace(/\[~([^\]]+)\]/g, '@$1');
+
+    // Jira wiki tables → Markdown tables
+    converted = this.convertJiraTables(converted);
+
+    // Status icons → emoji
+    converted = converted
+      .replace(/\(\/\)/g, '✅')
+      .replace(/\(x\)/g, '❌')
+      .replace(/\(!\)/g, '⚠️')
+      .replace(/\(i\)/g, 'ℹ️')
+      .replace(/\(\?\)/g, '❓')
+      .replace(/\(\+\)/g, '➕')
+      .replace(/\(-\)/g, '➖')
+      .replace(/\(\*\)/g, '⭐')
+      .replace(/\(\*r\)/g, '🔴')
+      .replace(/\(\*g\)/g, '🟢')
+      .replace(/\(\*b\)/g, '🔵')
+      .replace(/\(\*y\)/g, '🟡');
+
+    // Restore image placeholders
+    imageSlots.forEach((rendered, idx) => {
+      converted = converted.replace(`\x00IMG${idx}\x00`, rendered);
+    });
+
+    // Trailing whitespace per line
+    converted = converted.split('\n').map(l => l.trimEnd()).join('\n');
+
     return converted.trim();
+  }
+
+  /**
+   * Convert Jira wiki tables to Markdown tables.
+   * Header rows: ||col1||col2|| → | col1 | col2 |
+   * Data rows:   |cell1|cell2|  → | cell1 | cell2 |
+   */
+  convertJiraTables(text) {
+    const lines = text.split('\n');
+    const out = [];
+    let inTable = false;
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+
+      if (trimmed.startsWith('||')) {
+        const cells = trimmed.split('||').filter(c => c !== '');
+        out.push('| ' + cells.map(c => c.trim()).join(' | ') + ' |');
+        out.push('| ' + cells.map(() => '---').join(' | ') + ' |');
+        inTable = true;
+        continue;
+      }
+
+      if (trimmed.startsWith('|') && !trimmed.startsWith('||')) {
+        const cells = trimmed.split('|').filter(c => c !== '');
+        out.push('| ' + cells.map(c => c.trim()).join(' | ') + ' |');
+        inTable = true;
+        continue;
+      }
+
+      if (inTable) inTable = false;
+      out.push(line);
+    }
+
+    return out.join('\n');
+  }
+
+  /**
+   * Strip email signatures, forwarded message blocks, confidentiality footers,
+   * and HTML artefacts from converted ticket content.
+   */
+  sanitizeContent(text) {
+    if (!text) return text;
+
+    let s = text;
+
+    // HTML entities and inline tags that survived Jira's parser
+    s = s.replace(/&nbsp;/g, ' ')
+         .replace(/&lt;/g, '<')
+         .replace(/&gt;/g, '>')
+         .replace(/&amp;/g, '&')
+         .replace(/&quot;/g, '"')
+         .replace(/&#39;/g, "'");
+    s = s.replace(/<br\s*\/?>/gi, '\n').replace(/<\/?p>/gi, '\n');
+
+    // Email signature blocks (RFC 3676 "-- " or bare "--" delimiter)
+    s = this.stripEmailSignature(s);
+
+    // Forwarded / original message chains
+    s = s.replace(/\n-{4,}[ \t]*(?:Original Message|Forwarded message|Begin forwarded message).*/gi, '');
+
+    // Legal / confidentiality footer (last paragraph heuristic)
+    s = this.stripConfidentialityFooter(s);
+
+    // Collapse 3+ blank lines to 2
+    s = s.replace(/\n{3,}/g, '\n\n');
+
+    return s.trimEnd();
+  }
+
+  stripEmailSignature(text) {
+    const emailPattern = /[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}/;
+    const phonePattern = /\+\d[\d\s\-()+]{5,}/;
+
+    for (const pat of ['\n-- \n', '\n--\n']) {
+      const pos = text.indexOf(pat);
+      if (pos !== -1) {
+        const sample = text.slice(pos + pat.length, pos + pat.length + 500);
+        if (emailPattern.test(sample) || phonePattern.test(sample)) {
+          return text.slice(0, pos);
+        }
+      }
+    }
+    return text;
+  }
+
+  stripConfidentialityFooter(text) {
+    const lastBlank = text.lastIndexOf('\n\n');
+    if (lastBlank !== -1) {
+      const lastBlock = text.slice(lastBlank).toLowerCase();
+      if (lastBlock.includes('confidential') || lastBlock.includes('disclaimer') || lastBlock.includes('privileged')) {
+        return text.slice(0, lastBlank).trimEnd();
+      }
+    }
+    return text;
   }
 
   async normalizeLabels(ticketsDir) {
