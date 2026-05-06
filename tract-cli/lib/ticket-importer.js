@@ -614,19 +614,17 @@ class TicketImporter {
     // Custom fields defined in config.jira.custom_field_map
     this.applyCustomFields(fields, frontmatter);
 
-    // Attachments (extract Jira URLs)
-    if (fields.attachment && fields.attachment.length > 0) {
-      frontmatter.attachments = fields.attachment.map(att => ({
-        name: att.filename,
-        url: att.content // Jira API provides full URL in content field
-      }));
-    }
+    // Attachments belong in the markdown body alongside OCR content,
+    // not in frontmatter — they are content, not ticket attributes.
 
     // Description
     let description = '';
     if (fields.description) {
       description = this.sanitizeContent(this.convertJiraMarkdown(fields.description));
     }
+
+    // OCR attachment content (mirrors Rust daemon's render() behaviour)
+    const ocrSection = this.buildOcrSection(key, fields.attachment || []);
 
     // Comments
     let commentsSection = '';
@@ -642,7 +640,7 @@ class TicketImporter {
 
     // Build markdown file
     const yamlFrontmatter = yaml.dump(frontmatter, { lineWidth: -1 });
-    return `---\n${yamlFrontmatter}---\n\n${description}${commentsSection}`;
+    return `---\n${yamlFrontmatter}---\n\n${description}${commentsSection}${ocrSection}`;
   }
 
   normalizeType(typeName) {
@@ -964,6 +962,54 @@ class TicketImporter {
       }
     }
     return text;
+  }
+
+  /**
+   * Read OCR sidecar files for a ticket and build the ## Attachment Content
+   * section — mirrors ticket_writer.rs render() so JS and Rust produce
+   * identical output when sidecars exist.
+   */
+  buildOcrSection(ticketKey, attachments) {
+    const attachmentsPath = process.env.ATTACHMENTS_PATH || '/opt/tract/attachments';
+    const project = ticketKey.split('-')[0];
+    const dir = path.join(attachmentsPath, project, ticketKey);
+
+    if (!fs.existsSync(dir)) return '';
+
+    // filename → url map from Jira attachment list
+    const urlMap = {};
+    for (const att of attachments) {
+      if (att.filename && att.content) urlMap[att.filename] = att.content;
+    }
+
+    const imageExts = new Set(['png','jpg','jpeg','gif','webp','bmp','tiff','tif']);
+    const sidecars = [];
+
+    for (const entry of fs.readdirSync(dir)) {
+      if (!entry.endsWith('.md')) continue;
+      const imgName = entry.slice(0, -3); // strip .md
+      const ext = imgName.split('.').pop().toLowerCase();
+      if (!imageExts.has(ext)) continue;
+
+      const content = fs.readFileSync(path.join(dir, entry), 'utf8');
+      // Strip YAML frontmatter
+      const body = content.startsWith('---\n')
+        ? content.replace(/^---\n[\s\S]*?\n---\n/, '').trim()
+        : content.trim();
+      if (body) sidecars.push({ imgName, body });
+    }
+
+    if (sidecars.length === 0) return '';
+
+    sidecars.sort((a, b) => a.imgName.localeCompare(b.imgName));
+
+    let section = '\n## Attachment Content\n';
+    for (const { imgName, body } of sidecars) {
+      section += `\n### ${imgName}\n`;
+      if (urlMap[imgName]) section += `\n${urlMap[imgName]}\n`;
+      section += `\n${body}\n`;
+    }
+    return section;
   }
 
   stripConfidentialityFooter(text) {
