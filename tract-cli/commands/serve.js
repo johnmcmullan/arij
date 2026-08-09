@@ -7,11 +7,43 @@ const os = require('os');
 const yaml = require('js-yaml');
 const chokidar = require('chokidar');
 const { findTicketsDir, findWorkspace, loadProjectDirs, loadTicketsFromDir, loadTickets } = require('../lib/ticket-loader');
+const tokenStore = require('../lib/token-store');
+const permissions = require('../lib/permissions');
+const auditLog = require('../lib/audit-log');
+const { RateLimiter } = require('../lib/rate-limiter');
 
 const DEFAULT_PORT = 7766;
 
 // SSE client list
 let sseClients = [];
+
+// Auth is opt-in (docs/SECURITY.md "Phase 1: Monitoring Mode") — with it
+// unset, every request is logged but nothing is rejected or filtered.
+const AUTH_ENABLED = process.env.TRACT_AUTH_ENABLED === 'true';
+const rateLimiter = new RateLimiter();
+
+/** Bearer or X-Tract-Token header — see docs/SECURITY.md "Using Tokens". */
+function extractToken(req) {
+  const authHeader = req.headers['authorization'];
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    return authHeader.slice('Bearer '.length).trim();
+  }
+  const custom = req.headers['x-tract-token'];
+  return custom ? String(custom).trim() : null;
+}
+
+/** Human-readable action label for the audit log, roughly following the
+ * permission-type taxonomy in docs/SECURITY.md where one applies. */
+function actionForPath(urlPath) {
+  if (urlPath === '/api/tickets' || urlPath.startsWith('/api/ticket/')) return 'read:tickets';
+  if (urlPath === '/api/sprints') return 'read:sprints';
+  if (urlPath === '/api/projects') return 'read:projects';
+  if (urlPath === '/api/meta') return 'read:meta';
+  if (urlPath === '/api/events') return 'stream:events';
+  if (urlPath === '/') return 'read:dashboard_index';
+  if (urlPath.startsWith('/dashboards/')) return 'read:dashboard';
+  return 'unknown';
+}
 
 function sendJson(res, data, status = 200) {
   const body = JSON.stringify(data);
@@ -235,6 +267,51 @@ async function serveCommand(cmdObj) {
     const urlPath = req.url.split('?')[0];
     const query = parseQuery(req.url);
 
+    // ── Authentication (docs/SECURITY.md) ─────────────────────────────────
+    const rawToken = extractToken(req);
+    const tokenRecord = rawToken ? tokenStore.validateToken(rawToken) : null;
+    const email = tokenRecord ? tokenRecord.email : null;
+
+    // Every request is audited, in both monitoring and enforcement mode —
+    // fires once the response actually completes, whatever status it ends
+    // up with (including ones set by branches below).
+    res.on('finish', () => {
+      auditLog.logAccess({
+        user: email || 'anonymous',
+        action: actionForPath(urlPath),
+        resource: query.project || null,
+        method: req.method,
+        endpoint: req.url,
+        ip: req.socket && req.socket.remoteAddress,
+        success: res.statusCode < 400,
+        status: res.statusCode,
+        ...(res.tractResultCount != null ? { result_count: res.tractResultCount } : {}),
+      });
+    });
+
+    if (AUTH_ENABLED && !email) {
+      return sendJson(res, {
+        error: 'Authentication required',
+        hint: 'Set TRACT_API_TOKEN — see `tract token create --name <name>`'
+      }, 401);
+    }
+
+    if (AUTH_ENABLED && urlPath.startsWith('/api/') && urlPath !== '/api/events') {
+      const singleProject = query.project && !query.project.includes(',')
+        ? query.project.toUpperCase() : null;
+      const spec = singleProject
+        ? permissions.getRateLimit(email, singleProject, 'api')
+        : permissions.getGlobalRateLimit(email, 'api');
+      const limitResult = rateLimiter.check(email, 'api', spec);
+      if (!limitResult.allowed) {
+        res.setHeader('Retry-After', String(limitResult.retryAfterSeconds));
+        return sendJson(res, {
+          error: 'Rate limit exceeded',
+          retryAfter: limitResult.retryAfterSeconds
+        }, 429);
+      }
+    }
+
     // SSE endpoint
     if (urlPath === '/api/events') {
       res.writeHead(200, {
@@ -271,6 +348,14 @@ async function serveCommand(cmdObj) {
         tickets = tickets.filter(t => t.assignee && t.assignee.toLowerCase() === a);
       }
 
+      // Project/label/component visibility per permissions.yaml — only
+      // enforced in Phase 2 (TRACT_AUTH_ENABLED=true); monitoring mode
+      // shows everything, per docs/SECURITY.md.
+      if (AUTH_ENABLED) {
+        tickets = permissions.filterTickets(email, tickets);
+      }
+
+      res.tractResultCount = tickets.length;
       return sendJson(res, tickets);
     }
 
@@ -287,7 +372,16 @@ async function serveCommand(cmdObj) {
           const body = bodyMatch ? bodyMatch[1].trim() : '';
           const tickets = loadTicketsFromDir(p.ticketsDir, p.prefix);
           const ticket = tickets.find(t => t.id.toUpperCase() === id);
-          if (ticket) return sendJson(res, { ...ticket, body });
+          if (ticket) {
+            // Same visibility rule as the list endpoint — a ticket a user
+            // can't see in /api/tickets shouldn't be fetchable directly
+            // either. 404, not 403: per docs/SECURITY.md, filtered tickets
+            // are meant to be invisible, not just access-denied.
+            if (AUTH_ENABLED && permissions.filterTickets(email, [ticket]).length === 0) {
+              return send404(res, `Ticket ${id} not found`);
+            }
+            return sendJson(res, { ...ticket, body });
+          }
         }
       }
       return send404(res, `Ticket ${id} not found`);

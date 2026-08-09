@@ -264,12 +264,12 @@ ExecStart=/opt/tract/bin/tract serve
 
 ## Deployment
 
-See the security implementation guide:
-
-```bash
-/home/john.mcmullan/Claude/tract/security/README.md
-/home/john.mcmullan/Claude/tract/security/DEPLOYMENT_GUIDE.md
-```
+Deploy `tract` to the server the same way as any other install (see the
+main README), then set `TRACT_AUTH_ENABLED=true` in the `tract serve`
+systemd unit once you're ready to move from monitoring to enforcement (see
+"Enabling Security" above). No separate install step — token storage,
+`permissions.yaml`, and audit logs all live under `TRACT_SECURITY_HOME`
+(default `/opt/tract/.tract`) and are created automatically on first use.
 
 ## Future Phases
 
@@ -290,8 +290,12 @@ See the security implementation guide:
 ### Token not working
 
 ```bash
-# Check token exists
-ls /opt/tract/.tract/tokens/tract_xxx.yaml
+# List your tokens (never shows raw tokens, only metadata)
+tract token list
+
+# Tokens are stored hashed, not in cleartext — sha256(raw token), not the
+# token itself, so a leaked backup of this directory isn't directly usable:
+ls /opt/tract/.tract/tokens/*.yaml
 
 # Check permissions.yaml
 cat /opt/tract/.tract/permissions.yaml | grep your.email
@@ -333,8 +337,14 @@ File is reloaded automatically on each request.
 4. **Defense in depth** - Authentication + authorization + audit + rate limits
 5. **LLM-friendly** - Works for humans and agents alike
 
-## Support
+## Implementation
 
-For detailed implementation documentation, see:
-- `/home/john.mcmullan/Claude/tract/security/FORJOHN.md` - Technical deep dive
-- `/home/john.mcmullan/Claude/tract/security/README.md` - User guide
+- `tract-cli/lib/token-store.js` — PAT create/list/revoke/validate
+- `tract-cli/lib/permissions.js` — permissions.yaml, project/team checks, ticket filters
+- `tract-cli/lib/rate-limiter.js` — in-memory rate limiting
+- `tract-cli/lib/audit-log.js` — JSONL audit log
+- `tract-cli/commands/token.js` — `tract token` CLI
+- `tract-cli/commands/serve.js` — auth middleware, wired into every `/api/*` route
+
+Tests: `tract-cli/tests/unit/lib/{token-store,permissions,rate-limiter,audit-log}.test.js`,
+`tract-cli/tests/unit/cli/{token,serve-auth}.test.js`.

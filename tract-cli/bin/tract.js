@@ -270,20 +270,13 @@ program
   .action(require('../commands/normalize-labels'));
 
 // token — manage Personal Access Tokens
-// TODO: commands/token.js is documented in docs/SECURITY.md (tract token
-// create/list/revoke/create-service) but was never actually committed.
-// Registering this with require('../commands/token') crashes every tract
-// command, not just `tract token`, since commander evaluates the require
-// eagerly while building the program — disabled until that file exists.
-// program
-//   .command('token [subcommand]')
-//   .description('Manage Personal Access Tokens (PATs)')
-//   .option('--name <name>', 'Token name')
-//   .option('--ttl <days>', 'Time to live in days (default: 365)')
-//   .option('--user <email>', 'User email (for create-service)')
-//   .option('--all', 'List all tokens (admin only)')
-//   .option('--server <host>', 'Tract server hostname (or use sync_server in ~/.tract/workspace.yaml)')
-//   .option('--ssh-user <user>', 'SSH user on server', 'tract')
-//   .action(require('../commands/token'));
+program
+  .command('token [subcommand] [arg]')
+  .description('Manage Personal Access Tokens (PATs): create, create-service, list, revoke')
+  .option('--name <name>', 'Token name')
+  .option('--ttl <days>', 'Time to live in days (default: 365)')
+  .option('--user <email>', 'User email (for create-service)')
+  .option('--all', 'List all tokens (admin only)')
+  .action(require('../commands/token'));
 
 program.parse(process.argv);
