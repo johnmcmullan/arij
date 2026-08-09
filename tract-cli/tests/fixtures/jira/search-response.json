@@ -1,0 +1,194 @@
+{
+  "expand": "schema,names",
+  "startAt": 0,
+  "maxResults": 100,
+  "total": 3,
+  "issues": [
+    {
+      "key": "TB-042",
+      "fields": {
+        "summary": "FIX session drops during closing auction window",
+        "issuetype": { "name": "Bug" },
+        "status": { "name": "In Progress" },
+        "priority": { "name": "Critical" },
+        "created": "2026-01-15T09:23:11.000+0000",
+        "updated": "2026-02-10T14:05:22.000+0000",
+        "assignee": { "name": "john", "displayName": "John McMullan" },
+        "reporter": { "name": "sarah", "displayName": "Sarah Chen" },
+        "components": [{ "name": "trading.fix-engine" }],
+        "labels": ["fix-protocol", "production", "sev1"],
+        "fixVersions": [
+          {
+            "name": "6.8.0",
+            "description": "FIX stability and OAuth release",
+            "releaseDate": "2026-03-15",
+            "startDate": "2026-02-01",
+            "released": false,
+            "archived": false
+          }
+        ],
+        "versions": [
+          { "name": "6.7.2", "released": true, "archived": false }
+        ],
+        "resolution": null,
+        "resolutiondate": null,
+        "parent": null,
+        "issuelinks": [
+          {
+            "type": { "outward": "blocks", "inward": "is blocked by" },
+            "outwardIssue": { "key": "TB-055" }
+          }
+        ],
+        "timeestimate": 28800,
+        "environment": "production - EU London (16:28-16:35 GMT window)",
+        "customfield_10019": "0|hzzzzz:",
+        "customfield_10020": [
+          {
+            "id": 42,
+            "name": "Sprint 7",
+            "state": "active",
+            "startDate": "2026-02-10",
+            "endDate": "2026-02-21",
+            "goal": "Stabilise FIX sessions and ship OAuth"
+          }
+        ],
+        "customfield_10042": "Acme Trading Ltd",
+        "customfield_10100": "ACC-001",
+        "description": "h2. Summary\n\nFIX sessions to LSE and Euronext drop during the closing auction window (16:28-16:35 GMT).\n\nThe heartbeat interval is correctly configured at 30s but the counterparty reports no messages received.\n\nh3. Steps to Reproduce\n\n# Monitor FIX session at 16:25 GMT\n# Observe session drop at approximately 16:28\n# Check logs for heartbeat entries\n\nh3. Expected\n\nSession remains connected throughout auction.",
+        "comment": {
+          "comments": [
+            {
+              "author": { "name": "dave", "displayName": "Dave Wilson" },
+              "created": "2026-01-20T11:00:00.000+0000",
+              "body": "Confirmed on LSE connector. Nagle algorithm might be the culprit."
+            }
+          ]
+        },
+        "worklog": {
+          "worklogs": [
+            {
+              "author": { "name": "john", "displayName": "John McMullan" },
+              "started": "2026-02-10T10:00:00.000+0000",
+              "timeSpentSeconds": 10800,
+              "comment": "Investigating heartbeat logs"
+            }
+          ]
+        },
+        "watches": { "watchCount": 3 },
+        "attachment": []
+      }
+    },
+    {
+      "key": "TB-055",
+      "fields": {
+        "summary": "Refactor socket configuration for all FIX sessions",
+        "issuetype": { "name": "Story" },
+        "status": { "name": "Todo" },
+        "priority": { "name": "Major" },
+        "created": "2026-01-20T14:00:00.000+0000",
+        "updated": "2026-02-01T09:00:00.000+0000",
+        "assignee": { "name": "dave", "displayName": "Dave Wilson" },
+        "reporter": { "name": "john", "displayName": "John McMullan" },
+        "components": [{ "name": "trading.fix-engine" }],
+        "labels": ["refactor", "fix-protocol"],
+        "fixVersions": [
+          {
+            "name": "6.8.0",
+            "description": "FIX stability and OAuth release",
+            "releaseDate": "2026-03-15",
+            "startDate": "2026-02-01",
+            "released": false,
+            "archived": false
+          },
+          {
+            "name": "6.7.3",
+            "description": "Hotfix release",
+            "releaseDate": "2026-02-28",
+            "released": false,
+            "archived": false
+          }
+        ],
+        "versions": [],
+        "resolution": null,
+        "resolutiondate": null,
+        "parent": null,
+        "issuelinks": [
+          {
+            "type": { "outward": "blocks", "inward": "is blocked by" },
+            "inwardIssue": { "key": "TB-042" }
+          }
+        ],
+        "timeestimate": 57600,
+        "environment": null,
+        "customfield_10019": "0|iaaaaaa:",
+        "customfield_10020": [
+          {
+            "id": 42,
+            "name": "Sprint 7",
+            "state": "active",
+            "startDate": "2026-02-10",
+            "endDate": "2026-02-21",
+            "goal": "Stabilise FIX sessions and ship OAuth"
+          }
+        ],
+        "customfield_10042": null,
+        "customfield_10100": null,
+        "description": "Refactor the socket configuration to apply TCP_NODELAY and SO_KEEPALIVE consistently across all FIX session connectors.",
+        "comment": { "comments": [] },
+        "worklog": { "worklogs": [] },
+        "watches": { "watchCount": 1 },
+        "attachment": []
+      }
+    },
+    {
+      "key": "TB-060",
+      "fields": {
+        "summary": "Implement OAuth2 PKCE flow for client portal",
+        "issuetype": { "name": "Story" },
+        "status": { "name": "Done" },
+        "priority": { "name": "High" },
+        "created": "2026-01-05T08:00:00.000+0000",
+        "updated": "2026-02-08T16:30:00.000+0000",
+        "assignee": { "name": "alice", "displayName": "Alice Nkosi" },
+        "reporter": { "name": "sarah", "displayName": "Sarah Chen" },
+        "components": [{ "name": "auth-service" }],
+        "labels": ["oauth", "security"],
+        "fixVersions": [
+          {
+            "name": "6.8.0",
+            "description": "FIX stability and OAuth release",
+            "releaseDate": "2026-03-15",
+            "startDate": "2026-02-01",
+            "released": false,
+            "archived": false
+          }
+        ],
+        "versions": [],
+        "resolution": { "name": "Fixed" },
+        "resolutiondate": "2026-02-08T16:30:00.000+0000",
+        "parent": null,
+        "issuelinks": [],
+        "timeestimate": null,
+        "environment": null,
+        "customfield_10019": "0|jzzzzz:",
+        "customfield_10020": [
+          {
+            "id": 41,
+            "name": "Sprint 6",
+            "state": "closed",
+            "startDate": "2026-01-27",
+            "endDate": "2026-02-07",
+            "goal": "OAuth integration"
+          }
+        ],
+        "customfield_10042": null,
+        "customfield_10100": null,
+        "description": "Implement the OAuth2 PKCE flow to replace the legacy session-cookie authentication in the client portal.",
+        "comment": { "comments": [] },
+        "worklog": { "worklogs": [] },
+        "watches": { "watchCount": 2 },
+        "attachment": []
+      }
+    }
+  ]
+}

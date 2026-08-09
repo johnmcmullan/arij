@@ -7,7 +7,9 @@
     "tract": "./bin/tract.js"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
   },
   "keywords": [
     "tract",
@@ -27,5 +29,11 @@
     "enquirer": "^2.4.1",
     "js-yaml": "^4.1.0",
     "ora": "^5.4.1"
+  },
+  "devDependencies": {
+    "jest": "^30.2.0",
+    "nock": "^14.0.11",
+    "gray-matter": "^4.0.3",
+    "simple-git": "^3.30.0"
   }
 }
