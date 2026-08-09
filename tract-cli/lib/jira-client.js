@@ -41,11 +41,15 @@ class JiraClient {
   constructor(baseUrl, auth) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
     this.auth = auth;
-    this.client = axios.create({
-      baseURL: this.baseUrl,
-      auth: this.auth,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    // Support bearer token auth when no username is provided
+    const headers = { 'Content-Type': 'application/json' };
+    const axiosOpts = { baseURL: this.baseUrl, headers };
+    if (auth && auth.username) {
+      axiosOpts.auth = auth;
+    } else if (auth && auth.password) {
+      headers['Authorization'] = `Bearer ${auth.password}`;
+    }
+    this.client = axios.create(axiosOpts);
 
     // Hostname key for the rate cache
     try {

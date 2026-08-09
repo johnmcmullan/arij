@@ -61,6 +61,7 @@ program
   .option('--resume', 'Skip tickets that already have a .md file (useful after interrupted import)')
   .option('--concurrency <n>', 'Parallel page requests (default: auto-tuned from round-trip time)')
   .option('--commit', 'Auto-commit imported tickets to git')
+  .option('--force', 'Run import even on a sync server (bypasses daemon-active check)')
   .action(require('../commands/import'));
 
 program
@@ -79,13 +80,13 @@ program
 
 program
   .command('log')
-  .description('Log time to an issue')
+  .description('Log time to an issue (saved locally, synced to Jira by daemon)')
   .argument('<issue>', 'Issue key (e.g., APP-1002)')
-  .argument('<time>', 'Time spent (e.g., 2h, 30m, 1d)')
+  .argument('<time>', 'Time spent (e.g., 2h, 30m, 1h30m, 1d)')
   .argument('[comment]', 'Work description')
-  .option('--server <url>', 'Sync server URL (or use TRACT_SYNC_SERVER env var)')
-  .option('--author <name>', 'Author name (defaults to git user.name)')
+  .option('--author <username>', 'Jira username (defaults to git user.email local-part)')
   .option('--started <datetime>', 'Start time (ISO 8601, defaults to now)')
+  .option('--worklogs-dir <path>', 'Path to local worklogs git repo (or set TRACT_WORKLOGS_DIR)')
   .action(require('../commands/log'));
 
 program
@@ -106,14 +107,30 @@ program
   .option('--server <url>', 'Sync server URL (or use TRACT_SYNC_SERVER env var)')
   .action(require('../commands/worklogs'));
 
+{
+  const { teamsList, teamsShow } = require('../commands/teams');
+  const teamsCmd = program.command('teams').description('List and inspect Tempo teams');
+  teamsCmd.command('list')
+    .description('List all teams')
+    .option('--rd', 'Show only R&D teams')
+    .option('--jurisdiction <code>', 'Filter by jurisdiction (uk, eu, us, apac, in)')
+    .option('--dir <path>', 'Path to worklogs/teams directory (or set TRACT_WORKLOGS_DIR)')
+    .action((opts) => teamsList(opts));
+  teamsCmd.command('show <name-or-id>')
+    .description('Show team details and members')
+    .option('--dir <path>', 'Path to worklogs/teams directory (or set TRACT_WORKLOGS_DIR)')
+    .action((nameOrId, opts) => teamsShow(nameOrId, opts));
+}
+
 program
   .command('board [config]')
   .description('Show beautiful TUI dashboard (view-only, real-time, btop-style)')
   .option('--sprint <sprint>', 'Filter by sprint (backlog, current, latest, all, or sprint-id)')
   .option('--label <labels>', 'Filter by labels (comma-separated)')
-  .option('--assignee <name>', 'Filter by assignee (@me, ~me, or username)')
+  .option('--assignee <names>', 'Filter by assignee (comma-separated for OR: john,alice, or @me)')
   .option('--status <statuses>', 'Include only these statuses')
   .option('--exclude-status <statuses>', 'Exclude these statuses')
+  .option('--exclude-label <labels>', 'Exclude tickets with these labels (comma-separated)')
   .option('--save <name>', 'Save current filters as named board config')
   .option('--list', 'List saved board configurations')
   .option('--no-watch', 'Disable real-time file watching')
@@ -152,6 +169,8 @@ program
   .option('--dest <dir>', 'Destination directory (default: ~/.tract/)')
   .option('--server <host>', 'Sync server hostname for direct clone, e.g. reek (no catalog needed)')
   .option('--dry-run', 'Show what would be cloned without doing it')
+  .option('--full', 'Clone full git history (default: shallow --depth 1 snapshot)')
+  .option('--ssh', 'Use SSH instead of git:// daemon (requires tract user SSH access)')
   .action(require('../commands/clone'));
 
 // pull — git pull all workspace repos (project repos + worklogs)
@@ -159,6 +178,29 @@ program
   .command('pull')
   .description('Pull all tract repos in the current workspace to get latest tickets')
   .action(require('../commands/pull'));
+
+// ── Semantic search (qmd wrappers) ──────────────────────────────────────────
+const { searchCommand, vsearchCommand, queryCommand } = require('../commands/search');
+const searchOpts = cmd => cmd
+  .argument('<query>', 'Search query')
+  .option('-p, --project <keys>', 'Limit to project(s), comma-separated (e.g. TB,SERV)')
+  .option('--all', 'Return all matches (no limit)')
+  .option('--files', 'Return file paths only')
+  .option('--min-score <n>', 'Minimum relevance score (0–1)');
+
+searchOpts(program.command('search').description('Fast keyword search across ticket collections (requires qmd)'))
+  .action(searchCommand);
+searchOpts(program.command('vsearch').description('Semantic vector search across ticket collections (requires qmd)'))
+  .action(vsearchCommand);
+searchOpts(program.command('query').description('Hybrid search + reranking across ticket collections (requires qmd, best quality)'))
+  .action(queryCommand);
+
+program
+  .command('embed')
+  .description('Set up qmd collections for all cloned projects and generate embeddings')
+  .option('--setup-only', 'Register collections and context but skip running qmd embed')
+  .option('-v, --verbose', 'Show context strings added per project')
+  .action(require('../commands/embed'));
 
 program
   .command('branch <ticket>')
@@ -187,7 +229,7 @@ program
 program
   .command('detect-fields [project]')
   .description('Sample Jira tickets and identify custom field mappings using Claude')
-  .option('--tract <dir>', 'Tract ticket repository directory (defaults to current)', '.')
+  .option('--tract <dir>', 'Tract ticket repository directory (defaults to current)')
   .option('--jira <url>', 'Jira URL (or set jira.url in config.yaml)')
   .option('--project <key>', 'Project key (or pass as argument)')
   .option('--user <username>', 'Jira username (or JIRA_USERNAME env var)')
@@ -197,7 +239,18 @@ program
   .option('--model <model>', 'Claude model to use', 'claude-sonnet-4-6')
   .option('--reuse', 'Re-analyze the last saved payload without fetching from Jira again')
   .option('--payload <file>', 'Re-analyze a specific compact JSON payload file')
+  .option('--agent', 'Write field data to a file for analysis by an LLM agent (skips AI API call)')
+  .option('--agent-output <file>', 'Output path for --agent mode (default: /tmp/tract-field-data.json)')
   .action(require('../commands/detect-fields'));
+
+// accept-mappings — accept detected field mappings and unblock project sync
+program
+  .command('accept-mappings [project]')
+  .description('Accept field mappings and start project sync (deletes pending-field-detection sentinel)')
+  .option('--tract <dir>', 'Tract ticket repository directory (defaults to current)')
+  .option('--project <key>', 'Project key (or pass as argument)')
+  .option('--keep-payload', 'Keep the detect-fields payload JSON (deleted by default)')
+  .action(require('../commands/accept-mappings'));
 
 // auth — register Jira API token on sync server
 program
@@ -215,5 +268,17 @@ program
   .option('--dry-run', 'Show what would change without writing files')
   .option('--verbose', 'Print each changed file')
   .action(require('../commands/normalize-labels'));
+
+// token — manage Personal Access Tokens
+program
+  .command('token [subcommand]')
+  .description('Manage Personal Access Tokens (PATs)')
+  .option('--name <name>', 'Token name')
+  .option('--ttl <days>', 'Time to live in days (default: 365)')
+  .option('--user <email>', 'User email (for create-service)')
+  .option('--all', 'List all tokens (admin only)')
+  .option('--server <host>', 'Tract server hostname (or use sync_server in ~/.tract/workspace.yaml)')
+  .option('--ssh-user <user>', 'SSH user on server', 'tract')
+  .action(require('../commands/token'));
 
 program.parse(process.argv);

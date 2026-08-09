@@ -4,10 +4,27 @@ const yaml = require('js-yaml');
 const chalk = require('chalk');
 const JiraClient = require('../lib/jira-client');
 const TicketImporter = require('../lib/ticket-importer');
+const { loadServerEnv } = require('../lib/server-env');
+
+function findTractRoot(startDir) {
+  let dir = path.resolve(startDir);
+  while (true) {
+    if (fs.existsSync(path.join(dir, '.tract', 'config.yaml'))) return dir;
+    const parent = path.dirname(dir);
+    if (parent === dir) return null; // reached filesystem root
+    dir = parent;
+  }
+}
 
 async function importCommand(options) {
-  const tractDir = path.resolve(options.tract || '.');
-  
+  // Commander sets options.tract to '.' by default, so we can't use truthiness
+  // to detect an explicit --tract flag.  Only trust the value when it differs
+  // from the Commander default, or when the user explicitly passed --tract.
+  const tractExplicit = process.argv.includes('--tract');
+  const tractDir = tractExplicit
+    ? path.resolve(options.tract)
+    : (findTractRoot(process.cwd()) || path.resolve('.'));
+
   // Load config FIRST (before asking for credentials)
   const configPath = path.join(tractDir, '.tract', 'config.yaml');
   if (!fs.existsSync(configPath)) {
@@ -17,14 +34,32 @@ async function importCommand(options) {
   }
 
   const config = yaml.load(fs.readFileSync(configPath, 'utf8'));
-  
-  // Two modes: 
-  // 1. Sync configured (use config) - ongoing bidirectional sync
-  // 2. One-time import (use --jira flag) - migration to Tract-only
-  
-  let jiraUrl = options.jira || config.jira?.url;
   const projectKey = options.project || config.project;
-  
+
+  // On a tract sync server, the daemon owns all imports — don't reimport manually.
+  const serverEnv = loadServerEnv(tractDir);
+  if (serverEnv.envFile && !options.force) {
+    const projects = (serverEnv.raw?.JIRA_INCLUDE_PROJECTS || '').split(',').map(s => s.trim());
+    const inDaemon = projects.includes(projectKey);
+    console.log(chalk.bold.cyan('🔄 Tract Sync Server detected\n'));
+    console.log(chalk.gray(`   Env file: ${serverEnv.envFile}`));
+    if (inDaemon) {
+      console.log(chalk.green(`   ${projectKey} is already configured — the daemon will sync it automatically.\n`));
+      console.log(chalk.yellow('   To trigger an immediate full sync, reload the daemon:'));
+      console.log(chalk.gray('     sudo systemctl reload tract-sync\n'));
+    } else {
+      console.log(chalk.yellow(`   ${projectKey} is not yet in JIRA_INCLUDE_PROJECTS.\n`));
+      console.log(chalk.yellow('   Add it and reload:'));
+      console.log(chalk.gray(`     sudo sed -i 's/JIRA_INCLUDE_PROJECTS=.*/&,${projectKey}/' ${serverEnv.envFile}`));
+      console.log(chalk.gray('     sudo systemctl reload tract-sync\n'));
+    }
+    console.log(chalk.gray('   (Use --force to run a manual import anyway)\n'));
+    process.exit(0);
+  }
+  const resolvedJiraUrl = options.jira || config.jira?.url || serverEnv.jiraUrl || config.upstream;
+
+  let jiraUrl = resolvedJiraUrl;
+
   // Clean up null values from YAML
   if (jiraUrl === 'null' || jiraUrl === null) {
     jiraUrl = null;
@@ -65,9 +100,9 @@ async function importCommand(options) {
   // Get auth from environment or options
   const username = options.user || process.env.JIRA_USERNAME;
   const password = options.password || process.env.JIRA_PASSWORD;
-  const token = options.token || process.env.JIRA_TOKEN;
+  const token = options.token || process.env.JIRA_TOKEN || process.env.JIRA_API_TOKEN;
 
-  if (!username || !(password || token)) {
+  if (!(password || token)) {
     console.error(chalk.red('❌ Error: Jira credentials required\n'));
     console.error(chalk.yellow('Set environment variables:'));
     console.error(chalk.gray('   export JIRA_USERNAME=you@company.com'));

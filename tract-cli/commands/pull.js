@@ -9,7 +9,7 @@
 const fs   = require('fs');
 const path = require('path');
 const yaml = require('js-yaml');
-const { execSync } = require('child_process');
+const { execSync, spawnSync } = require('child_process');
 const chalk = require('chalk');
 
 const TRACT_DIR      = path.join(process.env.HOME, '.tract');
@@ -118,18 +118,47 @@ function isGitRepo(dir) {
 }
 
 function pullRepo(dir, label) {
-  try {
-    const out = execSync('git pull --ff-only 2>&1', { cwd: dir, encoding: 'utf8' }).trim();
-    const summary = out.includes('Already up to date')
-      ? chalk.gray('already up to date')
-      : chalk.green(out.split('\n').slice(-1)[0]);
-    console.log(`  ${chalk.cyan('↓')} ${label.padEnd(20)} ${summary}`);
+  const prefix = `  ${chalk.cyan('↓')} ${label.padEnd(20)} `;
+
+  // Announce before starting — large repos take time and silence looks like a hang
+  process.stdout.write(prefix + chalk.gray('fetching...\n'));
+
+  // Fetch latest (keep shallow with --depth=1)
+  const fetch = spawnSync('git', ['fetch', '--depth=1', '--progress'], {
+    cwd: dir,
+    stdio: ['ignore', 'ignore', 'inherit'],  // stderr → terminal (git progress)
+  });
+
+  if (fetch.status !== 0) {
+    console.log(`  ${chalk.red('✗')} ${label.padEnd(20)} ${chalk.red('fetch failed')}`);
+    return false;
+  }
+
+  // Check if we're already up to date before resetting
+  const localHead  = spawnSync('git', ['rev-parse', 'HEAD'],       { cwd: dir, encoding: 'utf8' }).stdout.trim();
+  const fetchHead  = spawnSync('git', ['rev-parse', 'FETCH_HEAD'], { cwd: dir, encoding: 'utf8' }).stdout.trim();
+
+  if (localHead === fetchHead) {
+    console.log(`  ${chalk.cyan('✓')} ${label.padEnd(20)} ${chalk.gray('up to date')}`);
     return true;
-  } catch (err) {
-    const msg = (err.stdout || err.message || '').trim().split('\n')[0];
+  }
+
+  // Hard reset to fetched tip — safe for read-only ticket mirrors
+  const reset = spawnSync('git', ['reset', '--hard', 'FETCH_HEAD'], {
+    cwd: dir,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+
+  const out = (reset.stdout || '').trim();
+  if (reset.status !== 0) {
+    const msg = (reset.stderr || out || 'reset failed').trim().split('\n')[0];
     console.log(`  ${chalk.red('✗')} ${label.padEnd(20)} ${chalk.red(msg)}`);
     return false;
   }
+
+  console.log(`  ${chalk.cyan('✓')} ${label.padEnd(20)} ${chalk.green('updated')}`);
+  return true;
 }
 
 module.exports = function pull(options) {

@@ -261,6 +261,30 @@ cat .tract/SCHEMA.md
 3. If update found: it installs automatically, report the new version
 4. Note: tract also checks for updates in the background every 8 hours and will notify at the start of the next command if a new version is available
 
+### Pattern 6: Field Detection for a New Project
+
+**Trigger:** A project directory contains `.tract/.pending-field-detection`.
+
+**User:** "Sync isn't starting for PRD" or "Set up field detection for PRD"
+
+**LLM:**
+1. Check for sentinel: `ls /opt/tract/PRD/.tract/.pending-field-detection`
+2. If present, run field detection:
+   ```bash
+   sudo -u tract tract detect-fields PRD
+   ```
+3. Review the summary printed by `detect-fields`. If results look wrong, re-run with `--reuse` to retry the AI step without re-fetching.
+4. Accept the mappings to unblock sync:
+   ```bash
+   sudo -u tract tract accept-mappings PRD
+   ```
+5. Verify the daemon picks up the project: `journalctl -u tract-sync -n 30`
+
+**Notes:**
+- Credentials are read automatically from `/etc/tract-sync/env` — no `--token` needed on the server.
+- Mappings land in `/etc/tract-sync/fields.yaml` and apply to **all** projects on the instance.
+- `per-project jira.custom_field_map` in `config.yaml` is deprecated; the daemon reads only `fields.yaml`.
+
 ## Troubleshooting
 
 ### LLM Can't Find Skills

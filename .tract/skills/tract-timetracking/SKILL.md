@@ -513,6 +513,27 @@ tract create APP --title "Fix bug" --type bug
 tract log APP-1234 2h "Initial investigation"
 ```
 
+**With tract-teams (R&D TAX reporting):**
+
+Tempo Teams are synced daily into `worklogs/teams/`. Each team YAML records members with `date_from`/`date_to` so membership can be checked at any point in time. This makes it possible to:
+
+1. Find all Engineering members in a jurisdiction for a tax period
+2. Cross-reference their worklogs for R&D ticket time
+3. Generate per-jurisdiction R&D hour totals
+
+```bash
+# See R&D teams in the UK
+tract teams list --rd --jurisdiction uk
+
+# Inspect a team's members and dates
+tract teams show "Engineering PT - Principal Trading"
+
+# Pull all worklogs for a date range (per user, then aggregate by team)
+tract timesheet <username> --month 2026-02 --format csv
+```
+
+Team membership is jurisdiction-tagged at the team level; worklogs carry the author. For a full R&D report, match: author ∈ team.members (where date_from ≤ period ≤ date_to) AND team.is_rd = true AND team.jurisdiction = <target>.
+
 **With reminders (cron):**
 ```bash
 # Set up daily reminder to log time

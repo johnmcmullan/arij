@@ -8,6 +8,7 @@ const { prompt } = require('enquirer');
 const JiraClient = require('../lib/jira-client');
 const ConfigGenerator = require('../lib/config-generator');
 const TicketImporter = require('../lib/ticket-importer');
+const { loadServerEnv, parseEnvFile } = require('../lib/server-env');
 
 
 /**
@@ -143,7 +144,6 @@ async function onboard(options) {
 
   // Validate inputs
   const isLocal = options.local;
-  const jiraUrl = options.jira;
   const projectKey = options.project ? options.project.toUpperCase() : null;
   
   if (!projectKey) {
@@ -151,6 +151,13 @@ async function onboard(options) {
     process.exit(1);
   }
   let outputDir = path.resolve(options.output);
+
+  // Load stored credentials from the server env file if present
+  // (allows `tract onboard --project SERV` on a server without re-specifying credentials)
+  const serverEnvData = loadServerEnv(outputDir);
+  const serverEnvCandidates = ['/etc/tract-sync/env', path.join(outputDir, 'bin', 'env')];
+
+  const jiraUrl = options.jira || serverEnvData.jiraUrl;
   const submodulePath = options.submodule;
   const remoteUrl = options.remote;
   const isSubmoduleMode = !!submodulePath;
@@ -291,19 +298,49 @@ See: https://github.com/johnmcmullan/tract
     process.exit(1);
   }
 
-  // Get credentials
-  const username = options.user || process.env.JIRA_USERNAME;
-  const token = options.token || process.env.JIRA_TOKEN;
+  // Get credentials — fall back to server env, then process env
+  const username = options.user || serverEnvData.username || process.env.JIRA_USERNAME;
+  const token = options.token || serverEnvData.token || process.env.JIRA_TOKEN;
   const password = options.password || process.env.JIRA_PASSWORD;
-
-  if (!username) {
-    console.error(chalk.red('❌ Error: --user required or set JIRA_USERNAME'));
-    process.exit(1);
-  }
 
   if (!token && !password) {
     console.error(chalk.red('❌ Error: --token or --password required, or set JIRA_TOKEN/JIRA_PASSWORD'));
+    if (serverEnvCandidates.some(f => fs.existsSync(f))) {
+      console.error(chalk.yellow('   (JIRA_API_TOKEN not found in server env file)'));
+    }
     process.exit(1);
+  }
+
+  // Detect if outputDir (or its parent) is an existing tract server root.
+  // Handles two cases:
+  //   1. `tract onboard` run from the server root → redirect to <root>/<PROJECT>
+  //   2. `tract onboard` run from inside <root>/<PROJECT> → use parent as server root
+  function isTractServerDir(dir) {
+    try {
+      return fs.readdirSync(dir).some(f => fs.existsSync(path.join(dir, f, '.tract', 'config.yaml')));
+    } catch (_) { return false; }
+  }
+
+  let serverRootDir = null;
+  if (!isSubmoduleMode) {
+    if (fs.existsSync(outputDir) && fs.readdirSync(outputDir).filter(f => f !== '.git').length > 0) {
+      if (isTractServerDir(outputDir)) {
+        // Running from the server root itself
+        serverRootDir = outputDir;
+        outputDir = path.join(serverRootDir, projectKey);
+        console.log(chalk.cyan(`ℹ  Detected existing tract server at ${serverRootDir}`));
+        console.log(chalk.cyan(`   Adding ${projectKey} as new project → ${outputDir}\n`));
+      } else if (isTractServerDir(path.dirname(outputDir))) {
+        // Running from inside a project dir within a server (e.g. ~/SERV)
+        serverRootDir = path.dirname(outputDir);
+        console.log(chalk.cyan(`ℹ  Detected existing tract server at ${serverRootDir}`));
+        console.log(chalk.cyan(`   Onboarding ${projectKey} in place at ${outputDir}\n`));
+      } else {
+        console.error(chalk.red(`❌ Error: Directory not empty: ${outputDir}`));
+        console.error(chalk.yellow(`   Remove files or use a different --output directory`));
+        process.exit(1);
+      }
+    }
   }
 
   // Create output directory if needed
@@ -312,16 +349,6 @@ See: https://github.com/johnmcmullan/tract
       console.log(chalk.yellow(`📁 Creating directory: ${outputDir}`));
     }
     fs.mkdirSync(outputDir, { recursive: true });
-  }
-
-  // Check if directory is empty (or has only .git)
-  if (!isSubmoduleMode) {
-    const existingFiles = fs.readdirSync(outputDir).filter(f => f !== '.git');
-    if (existingFiles.length > 0) {
-      console.error(chalk.red(`❌ Error: Directory not empty: ${outputDir}`));
-      console.error(chalk.yellow(`   Remove files or use a different --output directory`));
-      process.exit(1);
-    }
   }
 
   if (!isSubmoduleMode) {
@@ -333,9 +360,9 @@ See: https://github.com/johnmcmullan/tract
   const spinner = ora('Connecting to Jira...').start();
 
   try {
-    // Create Jira client
+    // Create Jira client — omit username for bearer token (PAT) auth
     const auth = {
-      username: username,
+      username: username || '',
       password: token || password
     };
     const jira = new JiraClient(jiraUrl, auth);
@@ -549,6 +576,48 @@ See: https://github.com/johnmcmullan/tract
       }
     }
 
+    // If we added to an existing tract server, update the daemon env file
+    if (serverRootDir) {
+      const envCandidates = [
+        '/etc/tract-sync/env',
+        path.join(serverRootDir, 'bin', 'env'),
+      ];
+      let updatedEnv = false;
+      for (const envFile of envCandidates) {
+        if (fs.existsSync(envFile)) {
+          try {
+            let envContent = fs.readFileSync(envFile, 'utf8');
+            const match = envContent.match(/^(JIRA_INCLUDE_PROJECTS=)(.+)$/m);
+            if (match && !match[2].split(',').includes(projectKey)) {
+              envContent = envContent.replace(
+                /^(JIRA_INCLUDE_PROJECTS=)(.+)$/m,
+                `$1${match[2]},${projectKey}`
+              );
+              fs.writeFileSync(envFile, envContent);
+              console.log(chalk.green(`✓ Added ${projectKey} to JIRA_INCLUDE_PROJECTS in ${envFile}`));
+              console.log(chalk.yellow(`  Restart the daemon to begin syncing: sudo systemctl restart tract-sync\n`));
+              updatedEnv = true;
+            } else if (match && match[2].split(',').includes(projectKey)) {
+              console.log(chalk.gray(`  ${projectKey} already in JIRA_INCLUDE_PROJECTS in ${envFile}\n`));
+              updatedEnv = true;
+            }
+            break;
+          } catch (envErr) {
+            // Permission denied — advise manually
+            console.log(chalk.yellow(`⚠  Could not update ${envFile} (permission denied).`));
+            console.log(chalk.gray(`   Run as root: sed -i 's/JIRA_INCLUDE_PROJECTS=.*/&,${projectKey}/' ${envFile}`));
+            console.log(chalk.gray(`   Then: sudo systemctl reload tract-sync\n`));
+            updatedEnv = true;
+            break;
+          }
+        }
+      }
+      if (!updatedEnv) {
+        console.log(chalk.yellow(`⚠  Could not find daemon env file. Add ${projectKey} to JIRA_INCLUDE_PROJECTS manually.`));
+        console.log(chalk.gray(`   Then restart: sudo systemctl restart tract-sync\n`));
+      }
+    }
+
     // Success message
     const finalOutputDir = isSubmoduleMode
       ? path.join(parentRepoDir, submodulePath)
@@ -562,28 +631,36 @@ See: https://github.com/johnmcmullan/tract
       console.log(chalk.gray(`   cd ${path.relative(process.cwd(), workingDir)}`));
     }
 
-    if (!importTickets) {
-      console.log(chalk.gray(`   tract import                # pull tickets from Jira`));
+    if (serverRootDir) {
+      console.log(chalk.yellow('   Reload the sync daemon to start pulling tickets:'));
+      console.log(chalk.gray('     sudo systemctl reload tract-sync\n'));
+    } else {
+      if (!importTickets) {
+        console.log(chalk.gray(`   tract import                # pull tickets from Jira`));
+      }
     }
 
     if (metadata.components.length > 0) {
       console.log(chalk.gray(`   tract map-components        # map Jira components to code paths`));
+      console.log(chalk.gray(`                               # (optional — skip straight to tract board)`));
     }
 
     console.log(chalk.gray(`   tract serve                 # open http://localhost:7766`));
     console.log(chalk.gray(`   tract board                 # terminal kanban board`));
     console.log(chalk.gray(`   tract doctor                # verify everything is healthy\n`));
 
-    console.log(chalk.bold('To enable live Jira sync (two admin tasks required):\n'));
-    console.log(chalk.yellow('  1. Server admin — install the tract-sync daemon (requires sudo):'));
-    console.log(chalk.gray('       See: tract-sync/README.md'));
-    console.log(chalk.gray('       Or:  https://github.com/johnmcmullan/tract/tree/master/tract-sync\n'));
-    console.log(chalk.yellow('  2. Jira admin — create a webhook in Jira pointing at the sync server:'));
-    console.log(chalk.gray('       Jira → Settings → System → Webhooks → Create'));
-    console.log(chalk.gray('       URL:    http://<tract-sync-server>:3100/webhook'));
-    console.log(chalk.gray('       Events: Issue Created, Issue Updated, Issue Deleted\n'));
-    console.log(chalk.gray('  Without these, Tract→Jira sync works (via git push).'));
-    console.log(chalk.gray('  Jira→Tract sync requires the daemon + webhook.\n'));
+    if (!serverRootDir) {
+      console.log(chalk.bold('To enable live Jira sync (two admin tasks required):\n'));
+      console.log(chalk.yellow('  1. Server admin — install the tract-sync daemon (requires sudo):'));
+      console.log(chalk.gray('       See: tract-sync/README.md'));
+      console.log(chalk.gray('       Or:  https://github.com/johnmcmullan/tract/tree/master/tract-sync\n'));
+      console.log(chalk.yellow('  2. Jira admin — create a webhook in Jira pointing at the sync server:'));
+      console.log(chalk.gray('       Jira → Settings → System → Webhooks → Create'));
+      console.log(chalk.gray('       URL:    http://<tract-sync-server>:3100/webhook'));
+      console.log(chalk.gray('       Events: Issue Created, Issue Updated, Issue Deleted\n'));
+      console.log(chalk.gray('  Without these, Tract→Jira sync works (via git push).'));
+      console.log(chalk.gray('  Jira→Tract sync requires the daemon + webhook.\n'));
+    }
 
   } catch (error) {
     spinner.fail(chalk.red('✗ Error during onboarding'));

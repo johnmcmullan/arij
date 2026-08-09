@@ -268,6 +268,45 @@ tract worklogs APP-1234
 
 ---
 
+### `tract teams`
+
+List and inspect Tempo teams synced from Jira. Teams are stored as YAML files in the `worklogs/teams/` directory of the worklogs clone.
+
+**Subcommands:**
+
+#### `tract teams list`
+
+```bash
+tract teams list                          # all teams, grouped by hierarchy
+tract teams list --rd                     # R&D teams only
+tract teams list --jurisdiction eu        # teams in a specific jurisdiction
+tract teams list --rd --jurisdiction uk   # combine filters
+```
+
+**Jurisdictions:** `eu`, `us`, `uk`, `apac`, `in`
+
+#### `tract teams show <name-or-id>`
+
+```bash
+tract teams show "Engineering PT - Principal Trading"
+tract teams show 33        # by numeric Tempo team ID
+tract teams show "PT"      # fuzzy name match
+```
+
+Shows team metadata, hierarchy, jurisdiction, R&D flag, active members with availability % and membership dates, and former members.
+
+**Options (both subcommands):**
+- `--dir <path>` - Path to the `teams/` directory (or set `TRACT_WORKLOGS_DIR` pointing to the worklogs clone root)
+
+**Setup:** Clone the worklogs repo and set `TRACT_WORKLOGS_DIR`:
+
+```bash
+tract clone worklogs --server <host>
+export TRACT_WORKLOGS_DIR=~/work/worklogs
+```
+
+---
+
 ### `tract import`
 
 Import tickets from Jira into an existing Tract repo.
@@ -303,14 +342,46 @@ tract import --commit
 
 Open the interactive terminal board (TUI). Real-time kanban/swimlane view of all tickets.
 
-**Optional:**
+**Options:**
 - `--project <prefix>` — Filter to specific project(s), comma-separated
 - `--workspace <dir>` — Workspace root (default: auto-detected from current directory)
+- `--assignee <names>` — Filter by assignee; comma-separate for OR matching (`john,alice`, `@me`)
+- `--label <labels>` — Show only tickets with any of these labels (comma-separated)
+- `--exclude-label <labels>` — Hide tickets that have any of these labels (comma-separated)
+- `--status <statuses>` — Show only these statuses (comma-separated)
+- `--exclude-status <statuses>` — Hide these statuses (comma-separated)
+- `--sprint <id>` — Filter by sprint (`current`, `backlog`, `latest`, `all`, or a sprint ID)
+- `--save <name>` — Save the current filter set as a named board config
+- `--list` — List all saved board configs
 
-**Example:**
+**Examples:**
 ```bash
 tract board
 tract board --project APP,FE
+tract board --assignee @me
+tract board --assignee john,alice,vijays --exclude-label tsd_apps_exclude
+tract board --project APP --exclude-status done,verified --save my-board
+tract board my-board
+```
+
+**Saved boards:**
+
+Filters can be saved and reused by name. The config is stored as a YAML file in
+`.tract/boards/<name>.yaml` and supports all the filter options above, including
+multi-value assignee lists and exclude-labels:
+
+```yaml
+name: Apps Team Board
+filters:
+  project: APP
+  assignee:
+    - john.mcmullan
+    - alice.smith
+  exclude_labels:
+    - tsd_apps_exclude
+  exclude_status:
+    - done
+    - verified
 ```
 
 **What it shows:**
@@ -408,6 +479,111 @@ tract map-components --code .. --confidence 90
 2. Uses LLM to match Jira component names to directories
 3. Writes mappings to `.tract/components.yaml`
 4. Interactive review (unless `--no-interactive`)
+
+---
+
+### `tract detect-fields [project]`
+
+Sample Jira tickets and use AI to identify custom field mappings. Results are written instance-wide to `/etc/tract-sync/fields.yaml`.
+
+**Arguments:**
+- `[project]` - Project key (e.g., PRD). Auto-detected when run from `/opt/tract`.
+
+**Optional:**
+- `--reuse` - Re-analyse the saved payload without re-fetching from Jira
+- `--agent` - Write field data to `/tmp/tract-field-data.json` for external LLM analysis
+- `--agent-output <file>` - Override the agent output path
+- `--per-type <n>` - Sample tickets per issue type (default: 2)
+- `--model <model>` - AI model to use
+- `--jira <url>` - Jira instance URL (falls back to `/etc/tract-sync/env`)
+- `--user <username>` - Jira username (falls back to `/etc/tract-sync/env`)
+- `--token <token>` - Jira API token (falls back to `/etc/tract-sync/env`)
+
+**What it does:**
+1. Fetches a stratified sample of tickets by issue type
+2. Saves payload to `<projectDir>/.tract/detect-fields-payload.json`
+3. Fetches field display names and plugin keys from Jira's `/rest/api/2/field`
+4. Sends a field-centric prompt to AI (SAIS/GPT-4o preferred, Anthropic fallback)
+5. Auto-resolves any "unidentified" fields that have an official Jira display name
+6. Writes final mappings to `/etc/tract-sync/fields.yaml` (non-destructive)
+7. Prints a summary and instructs you to run `tract accept-mappings <PROJECT>`
+
+**AI backend:** Uses SAIS (internal BroadGPT proxy) when `SAIS_URL`, `SAIS_ID_URL`, `CLIENT_ID`, and `CLIENT_SECRET` are set; falls back to Anthropic direct. Credentials are stored in `/opt/tract/.env`.
+
+**Note:** Blocked if `.tract/.pending-field-detection` sentinel is not present.
+
+**Examples:**
+
+```bash
+# Detect fields for PRD project (from /opt/tract)
+tract detect-fields PRD
+
+# Re-analyse without re-fetching
+tract detect-fields PRD --reuse
+
+# Write data for external LLM analysis
+tract detect-fields PRD --agent
+```
+
+---
+
+### `tract clone <project>`
+
+Clone a project (and its dependencies) from the catalog server or directly from a sync server.
+
+**Arguments:**
+- `<project>` - Project key (e.g., `APP`) or a full git URL
+
+**Optional:**
+- `--server <host>` - Sync server hostname for direct clone (no catalog needed), e.g. `reek`
+- `--dest <dir>` - Destination directory (default: `~/.tract/<PROJECT>`)
+- `--dry-run` - Show what would be cloned without doing it
+- `--full` - Clone full git history (default: shallow `--depth 1` snapshot)
+
+**Default is shallow clone.** Ticket repos accumulate millions of git objects over time (sync commits every few minutes). Developers only need the current state — shallow clone is orders of magnitude faster and smaller. Use `--full` only if you need git history for a specific reason.
+
+**Examples:**
+
+```bash
+# Direct clone from sync server (most common)
+tract clone APP --server reek
+
+# Via catalog server
+tract clone APP
+
+# Clone with full history (rarely needed)
+tract clone APP --server reek --full
+```
+
+**After cloning**, use `tract pull` to keep up to date (also shallow-compatible).
+
+---
+
+### `tract accept-mappings [project]`
+
+Accept detected field mappings and unblock project sync. Run after `tract detect-fields`.
+
+**Arguments:**
+- `[project]` - Project key. Auto-detected when run from `/opt/tract`.
+
+**Optional:**
+- `--keep-payload` - Preserve `.tract/detect-fields-payload.json` (default: deleted)
+- `--tract <dir>` - Tract repo directory
+- `--project <key>` - Explicit project key
+
+**What it does:**
+1. Deletes the `.tract/.pending-field-detection` sentinel (unblocks sync)
+2. Deletes `.tract/detect-fields-payload.json` (unless `--keep-payload`)
+3. Reports count of mappings now active in `/etc/tract-sync/fields.yaml`
+
+**Example:**
+
+```bash
+# Full field detection workflow
+tract detect-fields PRD           # AI analysis + auto-apply to fields.yaml
+tract detect-fields PRD --reuse   # re-run without re-fetching (optional)
+tract accept-mappings PRD         # delete sentinel → sync starts
+```
 
 ---
 

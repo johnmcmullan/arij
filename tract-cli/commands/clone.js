@@ -46,7 +46,7 @@ async function cloneFromUrl(repoUrl, options) {
   } else {
     try {
       fs.mkdirSync(path.dirname(destDir), { recursive: true });
-      execSync(`git clone ${repoUrl} ${destDir}`, { stdio: 'inherit' });
+      execSync(`git clone ${options.full ? '' : '--depth 1 '}${repoUrl} ${destDir}`, { stdio: 'inherit' });
     } catch (err) {
       console.error(`  ✗ Failed to clone: ${err.message}`);
       process.exit(1);
@@ -156,25 +156,31 @@ module.exports = async function clone(projectPrefix, options) {
   const dryRun = options.dryRun || false;
   const workDir = options.dest ? path.resolve(options.dest) : path.join(process.env.HOME, 'work');
 
-  // 1. Read catalog server URL — fall back to direct SSH clone if --server given
+  // 1. Read catalog server URL — fall back to direct clone if --server given
   const globalConfig = readGlobalConfig();
   const serverUrl = globalConfig.catalog_server;
   if (!serverUrl) {
     const sshHost = options.server;
     if (sshHost) {
-      // Construct tract@<host>:/opt/tract/<PREFIX> and clone directly
-      const repoUrl = `tract@${sshHost}:/opt/tract/${projectPrefix.toUpperCase()}`;
+      // Use git:// daemon (port 9418); --ssh flag to force SSH.
+      // Keep original case for the repo path (git-daemon is case-sensitive);
+      // use uppercase only for the local ~/.tract dir and workspace entry.
+      const prefix = projectPrefix.toUpperCase();
+      const repoPath = projectPrefix; // preserve original case for server path
+      const repoUrl = options.ssh
+        ? `tract@${sshHost}:/opt/tract/${repoPath}`
+        : `git://${sshHost}/${repoPath}`;
       const destDir = options.dest
         ? path.resolve(options.dest)
-        : path.join(TRACT_DIR, projectPrefix.toUpperCase());
+        : path.join(TRACT_DIR, prefix);
       const relDest = '~/' + path.relative(process.env.HOME, destDir).replace(/\\/g, '/');
-      console.log(`\n  Cloning ${projectPrefix.toUpperCase()} → ${relDest}\n`);
+      console.log(`\n  Cloning ${prefix} → ${relDest}\n`);
       if (!dryRun) {
         if (isGitRepo(destDir)) {
           console.log(`  (skipped — already cloned at ${relDest})`);
         } else {
           fs.mkdirSync(path.dirname(destDir), { recursive: true });
-          execSync(`git clone ${repoUrl} ${destDir}`, { stdio: 'inherit' });
+          execSync(`git clone ${options.full ? '' : '--depth 1 '}${repoUrl} ${destDir}`, { stdio: 'inherit' });
         }
         const wsFile = updateWorkspaceYaml(TRACT_DIR, [{
           name: projectPrefix.toUpperCase(),
@@ -249,7 +255,7 @@ module.exports = async function clone(projectPrefix, options) {
     } else {
       try {
         fs.mkdirSync(path.dirname(destDir), { recursive: true });
-        execSync(`git clone ${project.repo_url} ${destDir}`, { stdio: 'inherit' });
+        execSync(`git clone ${options.full ? '' : '--depth 1 '}${project.repo_url} ${destDir}`, { stdio: 'inherit' });
         console.log(`  ${project.name.padEnd(20)} → ~/${relDest.padEnd(30)} ✓`);
       } catch (err) {
         console.error(`  ✗ Failed to clone ${project.name}: ${err.message}`);
