@@ -587,6 +587,204 @@ tract accept-mappings PRD         # delete sentinel → sync starts
 
 ---
 
+### `tract catalog <subcommand> [arg]`
+
+Manage the catalog server used by `tract clone` and `tract update`.
+
+**Subcommands:**
+- `set <url>` - Save a catalog server URL to `~/.tract/config.yaml`
+- `list` - Fetch and print projects available on the configured catalog server (default if no subcommand given)
+
+**Example:**
+
+```bash
+tract catalog set https://tract.example.com
+tract catalog list
+#   APP            Application tickets
+#   TB             Trading bridge  [depends on: APP]
+```
+
+---
+
+### `tract pull`
+
+Pull every ticket repo found under `~/.tract/` (shallow `--depth=1` fetch + hard reset — safe because these are read-only ticket mirrors, not working repos). Also symlinks Tract's builtin skills into `~/.claude/skills` and `~/.copilot/skills`, and regenerates a personalised `tract-workspace` skill describing what's cloned and where.
+
+**When to use:** At the start of every session, to get the latest tickets and keep your LLM's workspace skill current.
+
+**Example:**
+
+```bash
+tract pull
+#   ✓ APP                  up to date
+#   ↓ TB                   updated
+#
+#   ✓ 2 repo(s) up to date
+```
+
+---
+
+### `tract search <query>` / `tract vsearch <query>` / `tract query <query>`
+
+Search across cloned ticket collections — three quality/speed tiers, all requiring [qmd](https://github.com/tobilu/qmd):
+
+- `search` - Fast keyword search. Falls back to `ripgrep`/`grep -R` if qmd isn't installed.
+- `vsearch` - Semantic vector search (no fallback — requires qmd).
+- `query` - Hybrid search + reranking, best quality (no fallback — requires qmd).
+
+**Optional (all three):**
+- `-p, --project <keys>` - Limit to project(s), comma-separated (e.g. `TB,SERV`)
+- `--all` - Return all matches (no limit)
+- `--files` - Return file paths only
+- `--min-score <n>` - Minimum relevance score (0–1)
+
+**Example:**
+
+```bash
+tract search "payment timeout" -p TB,APP
+tract vsearch "customer complaints about slow checkout"
+tract query "why did the auth refactor break SSO" --all
+```
+
+---
+
+### `tract embed`
+
+Set up [qmd](https://github.com/tobilu/qmd) collections for every cloned project and run `qmd embed` to generate embeddings, so `tract vsearch`/`tract query` have something to search. Fails gracefully (prints a message, doesn't error) if qmd isn't installed.
+
+**Optional:**
+- `--setup-only` - Register collections and context but skip running `qmd embed`
+- `-v, --verbose` - Show the context string added per project
+
+---
+
+### `tract branch <ticket>`
+
+Create a git branch for a ticket and record it in the ticket's frontmatter, in one step.
+
+**Arguments:**
+- `<ticket>` - Ticket key (e.g., `TB-1234`) — looks up `tickets/<ticket>.md` or the sharded `tickets/<shard>/<ticket>.md` layout
+
+**Optional:**
+- `--name <branch>` - Branch name (default: derived from the ticket title)
+- `--base <branch>` - Base branch to branch from (default: current `HEAD`)
+- `--force` - Create an additional branch even if the ticket already has one recorded
+
+**What it does:**
+1. Finds the ticket file
+2. Derives a branch name from the title unless `--name` is given
+3. Creates the branch (`git checkout -b`)
+4. Writes `branch: <name>` into the ticket frontmatter and commits that change
+
+---
+
+### `tract review <subcommand> <ticket>`
+
+Tract Review — lightweight PR review gating backed by a Forgejo instance, driven by policy recorded on the ticket itself. Reads `~/.tract/forgejo.yaml` (`{ url, token, user }`) for API access.
+
+**Subcommands:**
+- `open <ticket>` - Move ticket to in-review, open a Forgejo PR
+- `approve <ticket>` - Record an approval on the ticket
+- `status <ticket>` - Show current approval state
+- `check <ticket> <sha>` - Validate policy is satisfied (used by a pre-receive hook)
+
+**Optional:**
+- `--base <branch>` - Base branch for the PR (default: `main`)
+- `--policy <policy>` - Review policy: `agent-only`, `1-human`, `2-human`, `none` (default: `1-human` if unset on the ticket; `open` defaults to `agent-only`)
+- `--repo <owner/repo>` - Forgejo repo path (default: detected from the git remote)
+- `--comment <text>` - Approval comment (used with `approve`)
+- `--force` - Re-open a ticket that's already in review
+
+**Example:**
+
+```bash
+tract review open TB-1234
+tract review approve TB-1234 --comment "LGTM, verified the fix locally"
+tract review status TB-1234
+```
+
+---
+
+### `tract skills [name]`
+
+List every LLM skill prompt Tract can see — built-in skills plus any found in `.tract/skills`, `.claude/skills`, or `.github/skills` walking up from the current directory — or print one skill's full `SKILL.md` to stdout.
+
+**Arguments:**
+- `[name]` - Skill name to print. Omit to list all.
+
+**Example:**
+
+```bash
+tract skills                        # list all, with descriptions
+tract skills tract-onboarding       # print one skill's prompt
+tract skills tract-onboarding | llm # pipe straight to your LLM
+```
+
+---
+
+### `tract auth`
+
+Register your Jira API token on the sync server, over SSH. Separate from `tract token` (below) — this is for the *Jira bridge's* credentials (tract-sync fetching from Jira on your behalf), not for authenticating to `tract serve`'s own API.
+
+**Optional:**
+- `--server <host>` - Sync server hostname (or set `sync_server` in `~/.tract/workspace.yaml`)
+- `--user <sshuser>` - SSH user on the server (default: `tract`)
+
+**What it does:** Prompts for your git email, Jira username, and Jira API token, then SSHes to the sync server to register them in `/etc/tract-sync/users.yaml` and reload the `tract-sync` daemon so it picks up the new token immediately.
+
+---
+
+### `tract normalize-labels`
+
+Normalise and deduplicate labels across all ticket frontmatter — case, configured mappings, dedup, sort — using the `labels:` section of `.tract/config.yaml`.
+
+**Optional:**
+- `--tract <dir>` - Tract ticket repository directory (default: current)
+- `--dry-run` - Show what would change without writing files
+- `--verbose` - Print each changed file
+
+---
+
+### `tract update`
+
+Update the `tract` CLI itself to the latest version.
+
+**What it does:** If `tract` is running from a git checkout (a dev install), runs `git pull --ff-only`. Otherwise, checks the configured catalog server's `/version` endpoint and, if newer, `npm install -g`s the published tarball. Requires a catalog server (`tract catalog set <url>`) for the non-dev-install path.
+
+---
+
+### `tract token [subcommand] [arg]`
+
+Manage Personal Access Tokens for `tract serve`'s API — see [`docs/SECURITY.md`](../docs/SECURITY.md) for the full authentication/authorization/audit model. Tokens are scoped to the git email on the machine you run `tract token create` from (or to `--user` for `create-service`), and are shown exactly once at creation — only a hash is ever stored.
+
+**Subcommands:**
+- `create` - Create a token for yourself
+- `create-service --user <email>` - Create a token for another user (admin only — must be listed in `permissions.yaml`'s `admins:`)
+- `list` - List your tokens (metadata only, never the raw token)
+- `revoke <token-or-name>` - Revoke one of your tokens, by name or by the raw token string
+
+**Optional:**
+- `--name <name>` - Token name (required for `create`/`create-service`)
+- `--ttl <days>` - Time to live in days (default: 365)
+- `--user <email>` - User email, for `create-service`
+- `--all` - With `list`, show every user's tokens (admin only)
+
+**Example:**
+
+```bash
+tract token create --name "my-laptop" --ttl 90
+#   ✓ Token created successfully
+#     tract_am9obi5tY21pbGxhbkBvcmMuY29tOjhlZjJhNGI3Yw==
+#   export TRACT_API_TOKEN="tract_..."
+
+tract token list
+tract token revoke my-laptop
+```
+
+Then, on the server: `export TRACT_AUTH_ENABLED=true` before starting `tract serve` to move from monitoring mode (logs everything, rejects nothing) to enforcement.
+
+---
+
 ## Environment Variables
 
 ### `TRACT_SYNC_SERVER`
