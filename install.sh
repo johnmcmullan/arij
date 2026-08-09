@@ -66,10 +66,11 @@ else
     git clone "$REPO_URL" "$INSTALL_DIR"
 fi
 
-# Install dependencies
+# Install dependencies (production only — end users don't need jest/nock/etc,
+# which are only used by tract-cli/tests/ and would otherwise add ~76MB)
 echo -e "${BLUE}➜${NC} Installing dependencies..."
 cd "$INSTALL_DIR/tract-cli"
-npm install --silent
+npm install --omit=dev --silent
 
 # Create symlink
 echo -e "${BLUE}➜${NC} Setting up command..."
