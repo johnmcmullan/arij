@@ -29,10 +29,11 @@ This runs health checks and tells you exactly what's missing.
 If your team already has Tract set up:
 
 ```bash
-git clone ssh://git@server/path/to/tickets.git
-cd tickets
+tract clone --full ssh://git@server/path/to/tickets.git   # --full if you will git push
 tract doctor
 ```
+
+Default `tract clone` is `--depth 1` (read-only snapshot). Pushing ticket edits requires `--full`. Tickets are at `tickets/<last-digit>/<KEY>.md`.
 
 ### 3. Or Bootstrap a New Project
 
@@ -167,7 +168,9 @@ tract create APP \
   --labels "security,auth"
 ```
 
-**Requires:** `TRACT_SYNC_SERVER` environment variable or `--server` option
+**Offline / no server:** writes `tickets/new/<slug>.md` with `id: NEW`. Jira assigns the real key on the next daemon sync — the CLI will not guess `APP-N`.
+
+**With `TRACT_SYNC_SERVER`:** posts to a create HTTP endpoint if you run one. The tract-sync daemon itself does not serve `/create`.
 
 ---
 
@@ -851,7 +854,7 @@ tract onboard --jira <url> --project <KEY>
 2. Is the URL correct? `curl http://tract-server:3100/health`
 3. Are you on the right network/VPN?
 
-**Offline work:** You can still create/edit tickets locally. Edit markdown files in `issues/` directory.
+**Offline work:** `tract create` writes a draft under `tickets/new/` (`id: NEW`). Existing tickets live at `tickets/<shard>/<KEY>.md` (or flat `tickets/` / `issues/` on older repos).
 
 ### "Git user not configured"
 
@@ -870,8 +873,8 @@ If you're an LLM helping a developer:
 
 1. **Read `.tract/SCHEMA.md`** in the ticket repository for complete documentation
 2. Use `tract doctor` to diagnose issues
-3. Prefer `tract create` and `tract log` over manual file editing (when server is available)
-4. For offline work, edit markdown files directly in `issues/`
+3. Prefer `tract create` (draft under `tickets/new/`) and `tract log` over inventing Jira keys
+4. Existing tickets: `tickets/<last-digit-of-number>/<KEY>.md`. Do not allocate `max+1` keys locally.
 
 ---
 

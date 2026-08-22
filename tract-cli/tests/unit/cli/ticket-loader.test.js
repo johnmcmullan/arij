@@ -7,7 +7,10 @@ const {
   findWorkspace,
   loadProjectDirs,
   loadTicketsFromDir,
-  loadTickets
+  loadTickets,
+  listTicketFiles,
+  findTicketFile,
+  shardFor
 } = require(path.join(__dirname, '../../../lib/ticket-loader'));
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -295,5 +298,130 @@ describe('loadTickets()', () => {
     const fe = tickets.find(t => t.id === 'FE-1');
     expect(app.project).toBe('APP');
     expect(fe.project).toBe('FE');
+  });
+});
+
+// ─── shardFor ────────────────────────────────────────────────────────────────
+
+describe('shardFor()', () => {
+  it('returns the last digit of the numeric suffix', () => {
+    expect(shardFor('APP-123')).toBe('3');
+    expect(shardFor('TB-10')).toBe('0');
+  });
+
+  it('returns "other" when there is no numeric suffix', () => {
+    expect(shardFor('NONUMBER')).toBe('other');
+  });
+});
+
+// ─── listTicketFiles ─────────────────────────────────────────────────────────
+
+describe('listTicketFiles()', () => {
+  let tmp, ticketsDir;
+
+  beforeEach(() => {
+    tmp = makeTempDir();
+    ticketsDir = path.join(tmp, 'tickets');
+    fs.mkdirSync(ticketsDir, { recursive: true });
+  });
+
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  it('loads a ticket from a digit shard directory (tickets/3/APP-123.md)', () => {
+    createTicket(path.join(ticketsDir, '3'), { id: 'APP-123', title: 'Sharded ticket' });
+
+    const files = listTicketFiles(ticketsDir);
+    expect(files).toHaveLength(1);
+    expect(files[0].id).toBe('APP-123');
+    expect(files[0].path).toBe(path.join(ticketsDir, '3', 'APP-123.md'));
+  });
+
+  it('still loads flat tickets/APP-1.md', () => {
+    createTicket(ticketsDir, { id: 'APP-1', title: 'Flat ticket' });
+
+    const files = listTicketFiles(ticketsDir);
+    expect(files).toHaveLength(1);
+    expect(files[0].id).toBe('APP-1');
+    expect(files[0].path).toBe(path.join(ticketsDir, 'APP-1.md'));
+  });
+
+  it('does not load drafts under tickets/new/', () => {
+    createTicket(path.join(ticketsDir, 'new'), { id: 'NEW', title: 'foo' });
+    // createTicket names the file after the id ("NEW.md"); simulate the real
+    // draft filename shape (slug-timestamp.md) too, to be thorough.
+    fs.writeFileSync(path.join(ticketsDir, 'new', 'foo.md'), '---\nid: NEW\ntitle: foo\n---\n');
+
+    const files = listTicketFiles(ticketsDir);
+    expect(files).toHaveLength(0);
+  });
+
+  it('ignores non-digit, non-"new" directories', () => {
+    createTicket(path.join(ticketsDir, 'archive'), { id: 'OLD-1', title: 'old' });
+
+    const files = listTicketFiles(ticketsDir);
+    expect(files).toHaveLength(0);
+  });
+
+  it('combines sharded and flat tickets in one listing', () => {
+    createTicket(ticketsDir, { id: 'APP-1', title: 'Flat' });
+    createTicket(path.join(ticketsDir, '3'), { id: 'APP-123', title: 'Sharded' });
+
+    const files = listTicketFiles(ticketsDir);
+    expect(files.map(f => f.id).sort()).toEqual(['APP-1', 'APP-123']);
+  });
+
+  it('returns empty array when the directory does not exist', () => {
+    expect(listTicketFiles(path.join(tmp, 'missing'))).toEqual([]);
+  });
+});
+
+// ─── findTicketFile ──────────────────────────────────────────────────────────
+
+describe('findTicketFile()', () => {
+  let tmp, ticketsDir;
+
+  beforeEach(() => {
+    tmp = makeTempDir();
+    ticketsDir = path.join(tmp, 'tickets');
+    fs.mkdirSync(ticketsDir, { recursive: true });
+  });
+
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  it('finds a flat ticket file', () => {
+    createTicket(ticketsDir, { id: 'APP-1', title: 'Flat' });
+    expect(findTicketFile(ticketsDir, 'APP-1')).toBe(path.join(ticketsDir, 'APP-1.md'));
+  });
+
+  it('finds a sharded ticket file', () => {
+    createTicket(path.join(ticketsDir, '3'), { id: 'APP-123', title: 'Sharded' });
+    expect(findTicketFile(ticketsDir, 'APP-123')).toBe(path.join(ticketsDir, '3', 'APP-123.md'));
+  });
+
+  it('returns null when the ticket does not exist anywhere', () => {
+    expect(findTicketFile(ticketsDir, 'APP-999')).toBeNull();
+  });
+});
+
+// ─── loadTicketsFromDir — sharded layout ──────────────────────────────────────
+
+describe('loadTicketsFromDir() with sharded tickets', () => {
+  let tmp, ticketsDir;
+
+  beforeEach(() => {
+    tmp = makeTempDir();
+    ticketsDir = path.join(tmp, 'tickets');
+    fs.mkdirSync(ticketsDir, { recursive: true });
+  });
+
+  afterEach(() => { fs.rmSync(tmp, { recursive: true, force: true }); });
+
+  it('loads tickets from both flat and sharded layouts, excluding drafts', () => {
+    createTicket(ticketsDir, { id: 'APP-1', title: 'Flat' });
+    createTicket(path.join(ticketsDir, '3'), { id: 'APP-123', title: 'Sharded' });
+    createTicket(path.join(ticketsDir, 'new'), { id: 'NEW', title: 'Draft' });
+
+    const tickets = loadTicketsFromDir(ticketsDir, 'APP');
+    expect(tickets.map(t => t.id).sort()).toEqual(['APP-1', 'APP-123']);
   });
 });

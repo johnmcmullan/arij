@@ -4,6 +4,7 @@ const fs   = require('fs');
 const path = require('path');
 const yaml = require('js-yaml');
 const chalk = require('chalk');
+const { listTicketFiles } = require('../lib/ticket-loader');
 
 module.exports = async function normalizeLabels(options) {
   const tractDir = path.resolve(options.tract);
@@ -32,7 +33,7 @@ module.exports = async function normalizeLabels(options) {
     process.exit(1);
   }
 
-  const files = fs.readdirSync(ticketsDir).filter(f => f.endsWith('.md'));
+  const files = listTicketFiles(ticketsDir);
   if (files.length === 0) {
     console.log(chalk.gray('No ticket files found.'));
     return;
@@ -43,8 +44,8 @@ module.exports = async function normalizeLabels(options) {
 
   let totalChanged = 0;
 
-  for (const file of files) {
-    const filePath = path.join(ticketsDir, file);
+  for (const { path: filePath } of files) {
+    const file = path.basename(filePath);
 
     try {
       const content = fs.readFileSync(filePath, 'utf8');

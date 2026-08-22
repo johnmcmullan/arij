@@ -75,15 +75,87 @@ function loadProjectDirs(workspaceRoot, projectFilter) {
 }
 
 /**
- * Load tickets from a single directory.
+ * Returns the shard directory name for a ticket key: the last digit of the
+ * numeric suffix (e.g. APP-123 -> "3", TB-10 -> "0"). Mirrors
+ * tract-sync's ticket_writer::shard_for. Keys without a numeric suffix
+ * shard to "other" (the CLI never writes there).
+ */
+function shardFor(key) {
+  const idx = key.lastIndexOf('-');
+  if (idx === -1) return 'other';
+  const num = key.slice(idx + 1);
+  if (num.length === 0) return 'other';
+  return num[num.length - 1];
+}
+
+const SHARD_DIR_RE = /^[0-9]$/;
+
+/**
+ * List ticket files in a tickets/issues directory: flat *.md files plus one
+ * level of digit-named shard directories (tickets/<0-9>/*.md). Does not
+ * descend into tickets/new/ (Jira-create drafts) or other non-shard dirs.
+ * Returns [{ id, path }].
+ */
+function listTicketFiles(ticketsDir) {
+  const results = [];
+  if (!fs.existsSync(ticketsDir)) return results;
+
+  const entries = fs.readdirSync(ticketsDir, { withFileTypes: true });
+  for (const entry of entries) {
+    if (entry.isFile()) {
+      if (!entry.name.endsWith('.md')) continue;
+      results.push({ id: path.basename(entry.name, '.md'), path: path.join(ticketsDir, entry.name) });
+    } else if (entry.isDirectory() && SHARD_DIR_RE.test(entry.name)) {
+      const shardDir = path.join(ticketsDir, entry.name);
+      const shardEntries = fs.readdirSync(shardDir, { withFileTypes: true });
+      for (const shardEntry of shardEntries) {
+        if (!shardEntry.isFile() || !shardEntry.name.endsWith('.md')) continue;
+        results.push({ id: path.basename(shardEntry.name, '.md'), path: path.join(shardDir, shardEntry.name) });
+      }
+    }
+    // Non-digit directories (e.g. "new") are drafts/other data — skipped.
+  }
+
+  return results;
+}
+
+/**
+ * Find a single ticket's file path within ticketsDir, checking flat layout,
+ * then the shard its id hashes to, then scanning all shards as a fallback
+ * (covers ids that were re-keyed after their file was written).
+ * Returns the path, or null if not found.
+ */
+function findTicketFile(ticketsDir, id) {
+  const flat = path.join(ticketsDir, `${id}.md`);
+  if (fs.existsSync(flat)) return flat;
+
+  const shard = shardFor(id);
+  if (shard !== 'other') {
+    const sharded = path.join(ticketsDir, shard, `${id}.md`);
+    if (fs.existsSync(sharded)) return sharded;
+  }
+
+  if (fs.existsSync(ticketsDir)) {
+    for (const entry of fs.readdirSync(ticketsDir, { withFileTypes: true })) {
+      if (!entry.isDirectory() || !SHARD_DIR_RE.test(entry.name)) continue;
+      const candidate = path.join(ticketsDir, entry.name, `${id}.md`);
+      if (fs.existsSync(candidate)) return candidate;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Load tickets from a single directory (sharded and/or flat).
  * prefix is used to fill ticket.project if frontmatter doesn't have it.
  */
 function loadTicketsFromDir(ticketsDir, prefix) {
-  const files = fs.readdirSync(ticketsDir).filter(f => f.endsWith('.md'));
+  const files = listTicketFiles(ticketsDir);
   const tickets = [];
 
-  files.forEach(file => {
-    const filePath = path.join(ticketsDir, file);
+  files.forEach(({ path: filePath }) => {
+    const file = path.basename(filePath);
     const content = fs.readFileSync(filePath, 'utf8');
 
     const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
@@ -147,4 +219,13 @@ function loadTickets(projectDirs) {
   return tickets;
 }
 
-module.exports = { findTicketsDir, findWorkspace, loadProjectDirs, loadTicketsFromDir, loadTickets };
+module.exports = {
+  findTicketsDir,
+  findWorkspace,
+  loadProjectDirs,
+  loadTicketsFromDir,
+  loadTickets,
+  listTicketFiles,
+  findTicketFile,
+  shardFor
+};

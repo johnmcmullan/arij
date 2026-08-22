@@ -19,10 +19,11 @@ const path = require('path');
 const yaml = require('js-yaml');
 const chalk = require('chalk');
 const { execFileSync, execSync } = require('child_process');
+const { findTicketFile } = require('../lib/ticket-loader');
 
 module.exports = async function branch(ticketId, options) {
   // ── Locate ticket file ──────────────────────────────────────────────────────
-  const ticketFile = findTicketFile(ticketId);
+  const ticketFile = findTicketFile('tickets', ticketId);
   if (!ticketFile) {
     console.error(chalk.red(`❌ Ticket ${ticketId} not found`));
     console.error(chalk.gray('   Run this command from inside a tract project directory'));
@@ -118,29 +119,6 @@ module.exports = async function branch(ticketId, options) {
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-function findTicketFile(ticketId) {
-  // Flat layout: tickets/TB-1234.md
-  const flat = path.join('tickets', `${ticketId}.md`);
-  if (fs.existsSync(flat)) return flat;
-
-  // Sharded layout: tickets/4/TB-1234.md (last digit of number)
-  const num = ticketId.match(/-(\d+)$/)?.[1] || '';
-  if (num) {
-    const sharded = path.join('tickets', num[num.length - 1], `${ticketId}.md`);
-    if (fs.existsSync(sharded)) return sharded;
-  }
-
-  // Search all shards (slower fallback)
-  if (fs.existsSync('tickets')) {
-    for (const entry of fs.readdirSync('tickets')) {
-      const candidate = path.join('tickets', entry, `${ticketId}.md`);
-      if (fs.existsSync(candidate)) return candidate;
-    }
-  }
-
-  return null;
-}
 
 function deriveBranchName(ticketId, title) {
   const slug = title

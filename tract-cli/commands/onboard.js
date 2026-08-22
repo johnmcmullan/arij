@@ -650,16 +650,13 @@ See: https://github.com/johnmcmullan/tract
     console.log(chalk.gray(`   tract doctor                # verify everything is healthy\n`));
 
     if (!serverRootDir) {
-      console.log(chalk.bold('To enable live Jira sync (two admin tasks required):\n'));
-      console.log(chalk.yellow('  1. Server admin — install the tract-sync daemon (requires sudo):'));
+      console.log(chalk.bold('To enable live Jira sync:\n'));
+      console.log(chalk.yellow('  Server admin — install the tract-sync daemon (requires sudo):'));
       console.log(chalk.gray('       See: tract-sync/README.md'));
       console.log(chalk.gray('       Or:  https://github.com/johnmcmullan/tract/tree/master/tract-sync\n'));
-      console.log(chalk.yellow('  2. Jira admin — create a webhook in Jira pointing at the sync server:'));
-      console.log(chalk.gray('       Jira → Settings → System → Webhooks → Create'));
-      console.log(chalk.gray('       URL:    http://<tract-sync-server>:3100/webhook'));
-      console.log(chalk.gray('       Events: Issue Created, Issue Updated, Issue Deleted\n'));
-      console.log(chalk.gray('  Without these, Tract→Jira sync works (via git push).'));
-      console.log(chalk.gray('  Jira→Tract sync requires the daemon + webhook.\n'));
+      console.log(chalk.gray('  Jira→git is poll-based (no webhook listener in the daemon).'));
+      console.log(chalk.gray('  git→Jira: register with `tract auth`, edit ticket files or drafts,'));
+      console.log(chalk.gray('  then `git push`. Use `tract clone --full` if you intend to push.\n'));
     }
 
   } catch (error) {

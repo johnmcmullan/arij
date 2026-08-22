@@ -155,26 +155,36 @@ async function doctor(options) {
     }
   });
   
-  // 5. Issues directory exists
-  check('Issues directory exists', () => {
+  // 5. Tickets directory exists
+  check('Tickets directory exists', () => {
+    const { listTicketFiles } = require('../lib/ticket-loader');
+    const ticketsDir = path.join(tractDir, 'tickets');
     const issuesDir = path.join(tractDir, 'issues');
-    if (!fs.existsSync(issuesDir)) {
+
+    const ticketsExists = fs.existsSync(ticketsDir);
+    const issuesExists = fs.existsSync(issuesDir);
+
+    if (!ticketsExists && !issuesExists) {
       return {
         status: 'warning',
-        message: 'issues/ directory not found',
-        fix: 'mkdir issues && git add issues && git commit -m "Add issues directory"'
+        message: 'tickets/ directory not found',
+        fix: 'mkdir tickets && git add tickets && git commit -m "Add tickets directory"'
       };
     }
-    
-    const tickets = fs.readdirSync(issuesDir).filter(f => f.endsWith('.md'));
-    if (tickets.length === 0) {
-      return {
-        status: 'info',
-        message: 'No tickets yet (empty issues/ directory)'
-      };
+
+    const ticketsCount = ticketsExists ? listTicketFiles(ticketsDir).length : 0;
+    const issuesCount = issuesExists ? listTicketFiles(issuesDir).length : 0;
+
+    const counts = [];
+    if (ticketsExists) counts.push(`${ticketsCount} in tickets/`);
+    if (issuesExists) counts.push(`${issuesCount} in issues/`);
+
+    const total = ticketsCount + issuesCount;
+    if (total === 0) {
+      return { status: 'info', message: `No tickets yet (${counts.join(', ')})` };
     }
-    
-    return { status: 'info', message: `${tickets.length} ticket(s) found` };
+
+    return { status: 'info', message: `${total} ticket(s) found (${counts.join(', ')})` };
   });
   
   // 6. Git user configured
@@ -377,7 +387,7 @@ async function doctor(options) {
   
   // 15. Check for ticket body mentions not reflected in links frontmatter
   check('Ticket mention consistency (body → links)', () => {
-    const { findWorkspace, loadProjectDirs, findTicketsDir } = require('../lib/ticket-loader');
+    const { findWorkspace, loadProjectDirs, findTicketsDir, listTicketFiles } = require('../lib/ticket-loader');
 
     // Discover ticket directories using the same logic as serve/board
     let projectDirs;
@@ -398,10 +408,10 @@ async function doctor(options) {
 
     for (const proj of projectDirs) {
       if (!fs.existsSync(proj.ticketsDir)) continue;
-      const files = fs.readdirSync(proj.ticketsDir).filter(f => f.endsWith('.md'));
+      const files = listTicketFiles(proj.ticketsDir);
 
-      for (const file of files) {
-        const content = fs.readFileSync(path.join(proj.ticketsDir, file), 'utf8');
+      for (const { path: filePath } of files) {
+        const content = fs.readFileSync(filePath, 'utf8');
         // Extract body (everything after the closing --- of frontmatter)
         const bodyMatch = content.match(/^---\n[\s\S]*?\n---\n([\s\S]*)$/);
         if (!bodyMatch) continue;

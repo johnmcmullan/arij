@@ -6,7 +6,7 @@ const path = require('path');
 const os = require('os');
 const yaml = require('js-yaml');
 const chokidar = require('chokidar');
-const { findTicketsDir, findWorkspace, loadProjectDirs, loadTicketsFromDir, loadTickets } = require('../lib/ticket-loader');
+const { findTicketsDir, findWorkspace, loadProjectDirs, loadTicketsFromDir, loadTickets, findTicketFile } = require('../lib/ticket-loader');
 const tokenStore = require('../lib/token-store');
 const permissions = require('../lib/permissions');
 const auditLog = require('../lib/audit-log');
@@ -364,10 +364,9 @@ async function serveCommand(cmdObj) {
       const id = path.basename(urlPath).toUpperCase();
       for (const p of projectDirs) {
         if (!fs.existsSync(p.ticketsDir)) continue;
-        const file = fs.readdirSync(p.ticketsDir)
-          .find(f => f.replace(/\.md$/i, '').toUpperCase() === id);
-        if (file) {
-          const content = fs.readFileSync(path.join(p.ticketsDir, file), 'utf8');
+        const filePath = findTicketFile(p.ticketsDir, id);
+        if (filePath) {
+          const content = fs.readFileSync(filePath, 'utf8');
           const bodyMatch = content.match(/^---\n[\s\S]*?\n---\n([\s\S]*)$/);
           const body = bodyMatch ? bodyMatch[1].trim() : '';
           const tickets = loadTicketsFromDir(p.ticketsDir, p.prefix);
